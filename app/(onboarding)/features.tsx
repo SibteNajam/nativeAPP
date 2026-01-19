@@ -1,252 +1,565 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     ScrollView,
-    StatusBar,
+    Dimensions,
+    Platform,
+    Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { Button, Surface, IconButton } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MotiView, AnimatePresence } from 'moti';
+import Svg, { Path, Circle, Line, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 
-// Custom Icon Components
-const RobotIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Rect x="4" y="8" width="16" height="12" rx="3" stroke="#4DA6FF" strokeWidth="2" />
-        <Circle cx="9" cy="14" r="1.5" fill="#4DA6FF" />
-        <Circle cx="15" cy="14" r="1.5" fill="#4DA6FF" />
-        <Path d="M12 4V8" stroke="#4DA6FF" strokeWidth="2" strokeLinecap="round" />
-        <Circle cx="12" cy="3" r="1.5" fill="#4DA6FF" />
-        <Path d="M2 12H4" stroke="#4DA6FF" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M20 12H22" stroke="#4DA6FF" strokeWidth="2" strokeLinecap="round" />
-    </Svg>
-);
+// Import theme hook
+import { useTheme } from '@/contexts/ThemeContext';
 
-const ChartIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Path d="M3 3V21H21" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M7 14L11 10L15 14L21 8" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Circle cx="21" cy="8" r="2" fill="#10B981" />
-    </Svg>
-);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const AutoTradeIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Circle cx="12" cy="12" r="9" stroke="#8B5CF6" strokeWidth="2" />
-        <Path d="M12 6V12L16 14" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M17 3L19 5L17 7" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M7 17L5 19L7 21" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-);
-
-const ExchangeIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Circle cx="12" cy="12" r="9" stroke="#F59E0B" strokeWidth="2" />
-        <Path d="M8 12H16" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M12 8V16" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
-        <Path d="M9 9L12 6L15 9" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M15 15L12 18L9 15" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-);
-
-const ShieldIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Path d="M12 3L4 7V11C4 16.55 7.84 21.74 12 23C16.16 21.74 20 16.55 20 11V7L12 3Z" stroke="#EC4899" strokeWidth="2" strokeLinejoin="round" />
-        <Path d="M9 12L11 14L15 10" stroke="#EC4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-);
-
-const LightningIcon = () => (
-    <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <Path d="M13 2L4 14H12L11 22L20 10H12L13 2Z" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="rgba(245, 158, 11, 0.2)" />
-    </Svg>
-);
-
-// Exchange Logo Components
-const BinanceLogo = () => (
-    <Svg width="20" height="20" viewBox="0 0 24 24">
-        <Path d="M12 2L14.5 4.5L10 9L7.5 6.5L12 2Z" fill="#F3BA2F" />
-        <Path d="M17 7L19.5 9.5L12 17L4.5 9.5L7 7L12 12L17 7Z" fill="#F3BA2F" />
-        <Path d="M22 12L19.5 14.5L17 12L19.5 9.5L22 12Z" fill="#F3BA2F" />
-        <Path d="M2 12L4.5 9.5L7 12L4.5 14.5L2 12Z" fill="#F3BA2F" />
-        <Path d="M12 22L9.5 19.5L12 17L14.5 19.5L12 22Z" fill="#F3BA2F" />
-    </Svg>
-);
-
-const BitgetLogo = () => (
-    <Svg width="20" height="20" viewBox="0 0 24 24">
-        <Circle cx="12" cy="12" r="10" fill="#00F0FF" opacity="0.2" />
-        <Path d="M7 8H17L12 16L7 8Z" fill="#00F0FF" />
-        <Path d="M9 10H15L12 14L9 10Z" fill="#FFFFFF" />
-    </Svg>
-);
-
-const MexcLogo = () => (
-    <Svg width="20" height="20" viewBox="0 0 24 24">
-        <Circle cx="12" cy="12" r="10" fill="#2EBD85" opacity="0.2" />
-        <Path d="M6 12L10 6L12 10L14 6L18 12L14 18L12 14L10 18L6 12Z" fill="#2EBD85" />
-    </Svg>
-);
-
-const GateioLogo = () => (
-    <Svg width="20" height="20" viewBox="0 0 24 24">
-        <Circle cx="12" cy="12" r="9" stroke="#2354E6" strokeWidth="2" fill="none" />
-        <Path d="M12 7V12H17" stroke="#2354E6" strokeWidth="2" strokeLinecap="round" />
-        <Circle cx="12" cy="12" r="3" fill="#2354E6" />
-    </Svg>
-);
-
-// Feature data with icon components
-const FEATURES = [
-    {
-        Icon: RobotIcon,
-        title: 'AI-Powered Trading',
-        description: 'Advanced algorithms analyze markets 24/7 for optimal trade execution.',
-        color: '#4DA6FF',
-    },
-    {
-        Icon: ChartIcon,
-        title: 'Smart Analytics',
-        description: 'Real-time insights and performance tracking at your fingertips.',
-        color: '#10B981',
-    },
-    {
-        Icon: AutoTradeIcon,
-        title: 'Auto-Trading',
-        description: 'Set your strategy and let our bot execute trades automatically.',
-        color: '#8B5CF6',
-    },
-    {
-        Icon: ExchangeIcon,
-        title: 'Multi-Exchange',
-        description: 'Connect to Binance, Bitget, MEXC, Gate.io and more.',
-        color: '#F59E0B',
-    },
-    {
-        Icon: ShieldIcon,
-        title: 'Bank-Grade Security',
-        description: 'Your funds and API keys are protected with enterprise encryption.',
-        color: '#EC4899',
-    },
-    {
-        Icon: LightningIcon,
-        title: 'Lightning Fast',
-        description: 'Execute trades in milliseconds to capture every opportunity.',
-        color: '#F59E0B',
-    },
-];
-
-// Exchange data
+// Exchanges with logos
 const EXCHANGES = [
-    { name: 'Binance', Logo: BinanceLogo, color: '#F3BA2F' },
-    { name: 'Bitget', Logo: BitgetLogo, color: '#00F0FF' },
-    { name: 'MEXC', Logo: MexcLogo, color: '#2EBD85' },
-    { name: 'Gate.io', Logo: GateioLogo, color: '#2354E6' },
+    { name: 'Binance', color: '#F3BA2F' },
+    { name: 'Bitget', color: '#00F0FF' },
+    { name: 'MEXC', color: '#2EBD85' },
+    { name: 'Gate.io', color: '#2354E6' },
 ];
+
+// Animated Candlestick Chart Component
+const AnimatedCandleChart = ({ colors }: { colors: any }) => {
+    const candles = [
+        { o: 60, c: 80, h: 90, l: 50, bullish: true },
+        { o: 80, c: 70, h: 85, l: 65, bullish: false },
+        { o: 70, c: 90, h: 95, l: 68, bullish: true },
+        { o: 90, c: 75, h: 92, l: 70, bullish: false },
+        { o: 75, c: 85, h: 88, l: 72, bullish: true },
+        { o: 85, c: 100, h: 105, l: 82, bullish: true },
+        { o: 100, c: 95, h: 108, l: 90, bullish: false },
+        { o: 95, c: 110, h: 115, l: 92, bullish: true },
+    ];
+
+    const chartWidth = SCREEN_WIDTH - 80;
+    const chartHeight = 120;
+    const candleWidth = 16;
+    const spacing = (chartWidth - candles.length * candleWidth) / (candles.length + 1);
+
+    // Generate line path through candle closes
+    const linePath = candles.map((candle, i) => {
+        const x = spacing + i * (candleWidth + spacing) + candleWidth / 2;
+        const y = chartHeight - (candle.c / 120) * chartHeight;
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+
+    return (
+        <MotiView
+            from={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'timing', duration: 800 }}
+        >
+            <Surface style={[styles.chartCard, { backgroundColor: colors.surface }]} elevation={2}>
+                <View style={styles.chartHeader}>
+                    <View style={styles.chartTitleRow}>
+                        <MaterialCommunityIcons name="chart-line" size={18} color={colors.primary} />
+                        <Text style={[styles.chartTitle, { color: colors.text }]}>Live Performance</Text>
+                    </View>
+                    <View style={[styles.chartBadge, { backgroundColor: `${colors.success}20` }]}>
+                        <MaterialCommunityIcons name="trending-up" size={14} color={colors.success} />
+                        <Text style={[styles.chartBadgeText, { color: colors.success }]}>+24.5%</Text>
+                    </View>
+                </View>
+
+                <Svg width={chartWidth} height={chartHeight} style={styles.chartSvg}>
+                    <Defs>
+                        <LinearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                            <Stop offset="0" stopColor={colors.primary} stopOpacity="0.5" />
+                            <Stop offset="1" stopColor={colors.success} stopOpacity="1" />
+                        </LinearGradient>
+                    </Defs>
+
+                    {/* Grid lines */}
+                    {[0.25, 0.5, 0.75].map((ratio, i) => (
+                        <Line
+                            key={i}
+                            x1="0"
+                            y1={chartHeight * ratio}
+                            x2={chartWidth}
+                            y2={chartHeight * ratio}
+                            stroke={colors.border}
+                            strokeWidth="1"
+                            strokeDasharray="4,4"
+                            opacity={0.5}
+                        />
+                    ))}
+
+                    {/* Candlesticks */}
+                    {candles.map((candle, i) => {
+                        const x = spacing + i * (candleWidth + spacing);
+                        const bodyTop = chartHeight - (Math.max(candle.o, candle.c) / 120) * chartHeight;
+                        const bodyBottom = chartHeight - (Math.min(candle.o, candle.c) / 120) * chartHeight;
+                        const bodyHeight = bodyBottom - bodyTop;
+                        const wickTop = chartHeight - (candle.h / 120) * chartHeight;
+                        const wickBottom = chartHeight - (candle.l / 120) * chartHeight;
+                        const fillColor = candle.bullish ? colors.success : colors.error;
+
+                        return (
+                            <MotiView
+                                key={i}
+                                from={{ opacity: 0, translateY: 20 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ type: 'timing', duration: 400, delay: i * 80 }}
+                            >
+                                {/* Wick */}
+                                <Line
+                                    x1={x + candleWidth / 2}
+                                    y1={wickTop}
+                                    x2={x + candleWidth / 2}
+                                    y2={wickBottom}
+                                    stroke={fillColor}
+                                    strokeWidth="2"
+                                />
+                                {/* Body */}
+                                <Rect
+                                    x={x}
+                                    y={bodyTop}
+                                    width={candleWidth}
+                                    height={Math.max(bodyHeight, 3)}
+                                    fill={fillColor}
+                                    rx={2}
+                                />
+                            </MotiView>
+                        );
+                    })}
+
+                    {/* Trend line */}
+                    <Path
+                        d={linePath}
+                        stroke="url(#lineGradient)"
+                        strokeWidth="2"
+                        fill="none"
+                        strokeLinecap="round"
+                    />
+
+                    {/* Current price dot */}
+                    <Circle
+                        cx={spacing + (candles.length - 1) * (candleWidth + spacing) + candleWidth / 2}
+                        cy={chartHeight - (candles[candles.length - 1].c / 120) * chartHeight}
+                        r="6"
+                        fill={colors.success}
+                    />
+                </Svg>
+
+                <View style={styles.chartFooter}>
+                    <View style={styles.chartStat}>
+                        <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Win Rate</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.text }]}>94.7%</Text>
+                    </View>
+                    <View style={[styles.chartDivider, { backgroundColor: colors.border }]} />
+                    <View style={styles.chartStat}>
+                        <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Profit</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.success }]}>+$12,450</Text>
+                    </View>
+                    <View style={[styles.chartDivider, { backgroundColor: colors.border }]} />
+                    <View style={styles.chartStat}>
+                        <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Trades</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.text }]}>847</Text>
+                    </View>
+                </View>
+            </Surface>
+        </MotiView>
+    );
+};
+
+// All-In-One Circular Visualization Component
+const AllInOneOrbit = ({ colors }: { colors: any }) => {
+    const containerSize = SCREEN_WIDTH - 60;
+    const centerSize = 80;
+    const radius = (containerSize / 2) - 50;
+
+    // Features around the center
+    const orbitItems = [
+        { icon: 'newspaper-variant-outline', label: 'News', color: '#3B82F6' },
+        { icon: 'chart-bell-curve-cumulative', label: 'VLM', color: '#8B5CF6' },
+        { icon: 'calculator-variant', label: 'Quant', color: '#EC4899' },
+        { icon: 'function-variant', label: 'Math', color: '#F59E0B' },
+        { icon: 'flask-outline', label: 'Secret', color: '#10B981' },
+        { icon: 'robot-outline', label: 'AI', color: '#06B6D4' },
+    ];
+
+    return (
+        <MotiView
+            from={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'timing', duration: 600 }}
+        >
+            <Surface style={[styles.orbitCard, { backgroundColor: colors.surface }]} elevation={2}>
+                <View style={styles.orbitHeader}>
+                    <Text style={[styles.orbitTitle, { color: colors.text }]}>All-In-One Trading Intelligence</Text>
+                    <Text style={[styles.orbitSubtitle, { color: colors.textSecondary }]}>
+                        6 powerful engines working together
+                    </Text>
+                </View>
+
+                <View style={[styles.orbitContainer, { width: containerSize, height: containerSize }]}>
+                    {/* Outer dashed circle */}
+                    <View style={[styles.orbitRing, {
+                        width: radius * 2 + 80,
+                        height: radius * 2 + 80,
+                        borderColor: colors.border,
+                    }]} />
+
+                    {/* Inner dotted circle */}
+                    <View style={[styles.innerRing, {
+                        width: radius * 1.2,
+                        height: radius * 1.2,
+                        borderColor: colors.border,
+                    }]} />
+
+                    {/* Orbiting Feature Cards */}
+                    {orbitItems.map((item, index) => {
+                        const angle = (index * 60) - 90; // 60 degrees apart, start from top
+                        const radian = (angle * Math.PI) / 180;
+                        const x = containerSize / 2 + Math.cos(radian) * radius - 35; // 35 = half of bubble width
+                        const y = containerSize / 2 + Math.sin(radian) * radius - 28; // 28 = half of bubble height
+
+                        return (
+                            <MotiView
+                                key={index}
+                                from={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: 'timing', duration: 400, delay: 300 + index * 100 }}
+                                style={[styles.orbitItemAbsolute, { left: x, top: y }]}
+                            >
+                                <MotiView
+                                    from={{ scale: 1 }}
+                                    animate={{ scale: [1, 1.08, 1] }}
+                                    transition={{
+                                        type: 'timing',
+                                        duration: 2000,
+                                        loop: true,
+                                        delay: index * 200
+                                    }}
+                                    style={[styles.orbitBubble, {
+                                        backgroundColor: `${item.color}15`,
+                                        borderColor: item.color,
+                                    }]}
+                                >
+                                    <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                                    <Text style={[styles.orbitLabel, { color: item.color }]}>{item.label}</Text>
+                                </MotiView>
+                            </MotiView>
+                        );
+                    })}
+
+                    {/* Connection Lines */}
+                    <Svg
+                        width={containerSize}
+                        height={containerSize}
+                        style={styles.connectionSvg}
+                    >
+                        {orbitItems.map((item, index) => {
+                            const angle = (index * 60) - 90;
+                            const radian = (angle * Math.PI) / 180;
+                            const centerX = containerSize / 2;
+                            const centerY = containerSize / 2;
+                            const endX = centerX + Math.cos(radian) * (radius - 20);
+                            const endY = centerY + Math.sin(radian) * (radius - 20);
+
+                            return (
+                                <Line
+                                    key={index}
+                                    x1={centerX}
+                                    y1={centerY}
+                                    x2={endX}
+                                    y2={endY}
+                                    stroke={`${item.color}40`}
+                                    strokeWidth="2"
+                                    strokeDasharray="4,4"
+                                />
+                            );
+                        })}
+                    </Svg>
+
+                    {/* Center - AI Bot */}
+                    <View style={styles.centerContainer}>
+                        {/* Bot with pulse rings wrapper - this is the centered element */}
+                        <View style={styles.botWrapper}>
+                            {/* Pulse ring 1 */}
+                            <MotiView
+                                from={{ scale: 1, opacity: 0.5 }}
+                                animate={{ scale: 1.8, opacity: 0 }}
+                                transition={{ type: 'timing', duration: 1500, loop: true }}
+                                style={[styles.pulseRing, { backgroundColor: colors.primary }]}
+                            />
+                            {/* Pulse ring 2 */}
+                            <MotiView
+                                from={{ scale: 1, opacity: 0.3 }}
+                                animate={{ scale: 2.2, opacity: 0 }}
+                                transition={{ type: 'timing', duration: 1500, loop: true, delay: 400 }}
+                                style={[styles.pulseRing, { backgroundColor: colors.primary }]}
+                            />
+
+                            {/* Center Bot */}
+                            <View style={[styles.centerBot, { backgroundColor: colors.primary, paddingTop: 4 }]}>
+                                <MaterialCommunityIcons name="robot" size={36} color="#FFFFFF" />
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Bottom text */}
+                <View style={[styles.orbitFooter, { borderTopColor: colors.border }]}>
+                    <MaterialCommunityIcons name="information-outline" size={16} color={colors.textLight} />
+                    <Text style={[styles.orbitFooterText, { color: colors.textSecondary }]}>
+                        AI combines all data sources for smarter decisions
+                    </Text>
+                </View>
+            </Surface>
+        </MotiView>
+    );
+};
+
+// Expandable Feature Card
+const FeatureCard = ({
+    feature,
+    index,
+    isExpanded,
+    onToggle,
+    colors
+}: {
+    feature: any;
+    index: number;
+    isExpanded: boolean;
+    onToggle: () => void;
+    colors: any;
+}) => (
+    <MotiView
+        from={{ opacity: 0, translateY: 30 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 500, delay: index * 100 }}
+    >
+        <Pressable onPress={onToggle}>
+            <Surface style={[styles.featureCard, { backgroundColor: colors.surface }]} elevation={1}>
+                <View style={styles.featureMainRow}>
+                    <View style={[styles.featureIconContainer, { backgroundColor: feature.bgColor }]}>
+                        <MaterialCommunityIcons name={feature.icon as any} size={26} color={feature.color} />
+                    </View>
+                    <View style={styles.featureContent}>
+                        <Text style={[styles.featureTitle, { color: colors.text }]}>{feature.title}</Text>
+                        <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>{feature.description}</Text>
+                    </View>
+                    <MotiView
+                        animate={{ rotate: isExpanded ? '90deg' : '0deg' }}
+                        transition={{ type: 'timing', duration: 200 }}
+                    >
+                        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.primary} />
+                    </MotiView>
+                </View>
+
+                <AnimatePresence>
+                    {isExpanded && (
+                        <MotiView
+                            from={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ type: 'timing', duration: 300 }}
+                            style={[styles.featureDetails, { borderTopColor: colors.border }]}
+                        >
+                            <Text style={[styles.featureDetailsText, { color: colors.textSecondary }]}>
+                                {feature.details}
+                            </Text>
+                            <View style={styles.featureStats}>
+                                {feature.stats.map((stat: any, i: number) => (
+                                    <View key={i} style={[styles.featureStatItem, { backgroundColor: colors.surfaceLight }]}>
+                                        <MaterialCommunityIcons name={stat.icon} size={16} color={colors.primary} />
+                                        <Text style={[styles.featureStatText, { color: colors.text }]}>{stat.value}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </MotiView>
+                    )}
+                </AnimatePresence>
+            </Surface>
+        </Pressable>
+    </MotiView>
+);
 
 export default function FeaturesScreen() {
+    const { colors, isDark, toggleTheme } = useTheme();
+    const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+    // Features with dynamic colors and details
+    const FEATURES = [
+        {
+            icon: 'brain',
+            title: 'AI-Powered Engine',
+            description: 'Machine learning for smart trading',
+            color: colors.primary,
+            bgColor: `${colors.primary}20`,
+            details: 'Our AI analyzes millions of data points in real-time, learning from market patterns to predict optimal entry and exit points. Trained on 5+ years of historical data.',
+            stats: [
+                { icon: 'database', value: '10M+ trades' },
+                { icon: 'clock-fast', value: '< 10ms' },
+                { icon: 'chart-line', value: '94.7% accuracy' },
+            ],
+        },
+        {
+            icon: 'chart-timeline-variant',
+            title: 'Technical Analysis',
+            description: 'Auto pattern detection',
+            color: '#3B82F6',
+            bgColor: '#3B82F620',
+            details: 'Automatically detects 50+ chart patterns including head & shoulders, double tops, triangles, and more. Real-time RSI, MACD, and Bollinger Band analysis.',
+            stats: [
+                { icon: 'shape', value: '50+ patterns' },
+                { icon: 'gauge', value: '15 indicators' },
+                { icon: 'bell', value: 'Smart alerts' },
+            ],
+        },
+        {
+            icon: 'shield-lock',
+            title: 'Bank-Grade Security',
+            description: 'API keys encrypted with AES-256',
+            color: colors.success,
+            bgColor: `${colors.success}20`,
+            details: 'Your API keys are encrypted with military-grade AES-256 encryption. We never withdraw or transfer funds—only trade execution permissions required.',
+            stats: [
+                { icon: 'lock', value: 'AES-256' },
+                { icon: 'shield-check', value: 'SOC 2' },
+                { icon: 'key', value: 'Read-only keys' },
+            ],
+        },
+        {
+            icon: 'lightning-bolt',
+            title: 'Ultra-Low Latency',
+            description: 'Execute trades in <50ms',
+            color: colors.warning,
+            bgColor: `${colors.warning}20`,
+            details: 'Co-located servers near major exchanges ensure lightning-fast order execution. Average latency of just 12ms means you never miss a trade opportunity.',
+            stats: [
+                { icon: 'server', value: '5 regions' },
+                { icon: 'speedometer', value: '12ms avg' },
+                { icon: 'wifi', value: '99.99% uptime' },
+            ],
+        },
+    ];
+
     const handleContinue = () => {
-        router.replace('/login');
+        router.push('/login');
     };
 
     const handleBack = () => {
         router.back();
     };
 
+    const toggleFeature = (index: number) => {
+        setExpandedIndex(expandedIndex === index ? null : index);
+    };
+
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-            <LinearGradient
-                colors={['#0A1628', '#0F2744', '#0A1628']}
-                style={styles.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            >
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <Path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </Svg>
-                    </TouchableOpacity>
-                    <View style={styles.dotsContainer}>
-                        <View style={[styles.dot, styles.dotInactive]} />
-                        <View style={[styles.dot, styles.dotActive]} />
-                    </View>
-                    <View style={styles.placeholder} />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            {/* Header */}
+            <View style={styles.header}>
+                <IconButton
+                    icon="arrow-left"
+                    iconColor={colors.text}
+                    size={24}
+                    onPress={handleBack}
+                    style={[styles.backButton, { backgroundColor: colors.surface }]}
+                />
+                <View style={styles.dotsContainer}>
+                    <View style={[styles.dot, { backgroundColor: colors.border }]} />
+                    <View style={[styles.dot, styles.dotActive, { backgroundColor: colors.primary }]} />
                 </View>
+                <IconButton
+                    icon={isDark ? 'weather-sunny' : 'moon-waning-crescent'}
+                    iconColor={colors.primary}
+                    size={22}
+                    onPress={toggleTheme}
+                    style={[styles.themeToggle, { backgroundColor: colors.surface }]}
+                />
+            </View>
 
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Title Section */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500 }}
                 >
-                    {/* Title Section */}
-                    <View style={styles.titleSection}>
-                        <Text style={styles.title}>Powerful</Text>
-                        <Text style={styles.titleAccent}>Features</Text>
-                        <Text style={styles.subtitle}>
-                            Everything you need to trade smarter and grow your portfolio.
-                        </Text>
-                    </View>
+                    <Text style={[styles.titleSmall, { color: colors.primary }]}>DISCOVER</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Powerful Features</Text>
+                </MotiView>
 
-                    {/* Supported Exchanges */}
-                    <View style={styles.exchangesSection}>
-                        <Text style={styles.exchangesLabel}>SUPPORTED EXCHANGES</Text>
-                        <View style={styles.exchangesList}>
-                            {EXCHANGES.map((exchange, index) => (
-                                <View key={index} style={[styles.exchangeBadge, { borderColor: `${exchange.color}40` }]}>
-                                    <exchange.Logo />
-                                    <Text style={styles.exchangeText}>{exchange.name}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
+                {/* Animated Chart */}
+                <AnimatedCandleChart colors={colors} />
 
-                    {/* Features List */}
-                    <View style={styles.featuresSection}>
-                        {FEATURES.map((feature, index) => (
-                            <View key={index} style={styles.featureCard}>
-                                <View style={[styles.featureIcon, { backgroundColor: `${feature.color}20` }]}>
-                                    <feature.Icon />
-                                </View>
-                                <View style={styles.featureContent}>
-                                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                                    <Text style={styles.featureDescription}>{feature.description}</Text>
-                                </View>
-                            </View>
+                {/* Exchanges */}
+                <View style={styles.exchangesSection}>
+                    <Text style={[styles.sectionLabel, { color: colors.textLight }]}>MULTI-EXCHANGE SUPPORT</Text>
+                    <View style={styles.exchangeRow}>
+                        {EXCHANGES.map((exchange, index) => (
+                            <MotiView
+                                key={index}
+                                from={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: 'timing', duration: 400, delay: index * 100 }}
+                            >
+                                <Surface style={[styles.exchangeCard, { backgroundColor: colors.surface }]} elevation={1}>
+                                    <View style={[styles.exchangeDot, { backgroundColor: exchange.color }]} />
+                                    <Text style={[styles.exchangeName, { color: colors.text }]}>{exchange.name}</Text>
+                                </Surface>
+                            </MotiView>
                         ))}
                     </View>
-
-                    {/* Spacer for button */}
-                    <View style={{ height: 120 }} />
-                </ScrollView>
-
-                {/* Bottom CTA */}
-                <View style={styles.bottomSection}>
-                    <TouchableOpacity
-                        style={styles.continueButton}
-                        onPress={handleContinue}
-                        activeOpacity={0.8}
-                    >
-                        <LinearGradient
-                            colors={['#4DA6FF', '#2563EB']}
-                            style={styles.buttonGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <Text style={styles.continueText}>Start Trading Now</Text>
-                            <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <Path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </Svg>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                    <Text style={styles.joinText}>Join 50,000+ traders worldwide</Text>
                 </View>
-            </LinearGradient>
+
+                {/* All-In-One Orbital Visualization */}
+                <AllInOneOrbit colors={colors} />
+
+                {/* Features List */}
+                <View style={styles.featuresSection}>
+                    <Text style={[styles.sectionLabel, { color: colors.textLight }]}>KEY FEATURES</Text>
+                    <Text style={[styles.sectionHint, { color: colors.textSecondary }]}>Tap to see details</Text>
+                    <View style={styles.featuresList}>
+                        {FEATURES.map((feature, index) => (
+                            <FeatureCard
+                                key={index}
+                                feature={feature}
+                                index={index}
+                                isExpanded={expandedIndex === index}
+                                onToggle={() => toggleFeature(index)}
+                                colors={colors}
+                            />
+                        ))}
+                    </View>
+                </View>
+
+                <View style={{ height: 140 }} />
+            </ScrollView>
+
+            {/* Bottom CTA */}
+            <View style={[styles.bottomSection, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+                <Button
+                    mode="contained"
+                    onPress={handleContinue}
+                    style={styles.ctaButton}
+                    contentStyle={styles.ctaButtonContent}
+                    labelStyle={styles.ctaButtonLabel}
+                    buttonColor={colors.primary}
+                >
+                    Let's Make Money
+                </Button>
+                <View style={styles.ctaInfo}>
+                    <MaterialCommunityIcons name="check-circle" size={16} color={colors.success} />
+                    <Text style={[styles.ctaInfoText, { color: colors.textSecondary }]}>Free 14-day trial • No card required</Text>
+                </View>
+            </View>
         </View>
     );
 }
@@ -255,26 +568,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    gradient: {
-        flex: 1,
-    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 50,
-        paddingHorizontal: 20,
-        paddingBottom: 10,
+        paddingTop: 44,
+        paddingHorizontal: 12,
+        paddingBottom: 8,
     },
     backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        margin: 0,
     },
     dotsContainer: {
         flexDirection: 'row',
@@ -287,142 +590,341 @@ const styles = StyleSheet.create({
     },
     dotActive: {
         width: 24,
-        backgroundColor: '#4DA6FF',
     },
-    dotInactive: {
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    placeholder: {
-        width: 44,
+    themeToggle: {
+        margin: 0,
+        borderRadius: 12,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
     },
-    titleSection: {
-        marginTop: 20,
-        marginBottom: 28,
+    titleSmall: {
+        fontSize: 12,
+        fontWeight: '700',
+        marginBottom: 4,
+        letterSpacing: 2,
     },
     title: {
-        fontSize: 34,
-        fontWeight: '300',
-        color: '#FFFFFF',
-        letterSpacing: -0.5,
+        fontSize: 28,
+        fontWeight: '700',
+        marginBottom: 20,
     },
-    titleAccent: {
-        fontSize: 38,
-        fontWeight: '800',
-        color: '#4DA6FF',
-        letterSpacing: -1,
-        marginBottom: 12,
+    // Chart Card
+    chartCard: {
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 24,
     },
-    subtitle: {
-        fontSize: 15,
-        color: 'rgba(255, 255, 255, 0.7)',
-        lineHeight: 22,
-    },
-    exchangesSection: {
-        marginBottom: 28,
-    },
-    exchangesLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.5)',
-        letterSpacing: 1.5,
-        marginBottom: 12,
-    },
-    exchangesList: {
+    chartHeader: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
     },
-    exchangeBadge: {
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 10,
-        borderWidth: 1,
+    chartTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
-    exchangeText: {
-        fontSize: 13,
+    chartTitle: {
+        fontSize: 16,
         fontWeight: '600',
-        color: '#FFFFFF',
     },
+    chartBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    chartBadgeText: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    chartSvg: {
+        marginVertical: 8,
+    },
+    chartFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0,0,0,0.05)',
+    },
+    chartStat: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    chartStatLabel: {
+        fontSize: 11,
+        marginBottom: 4,
+    },
+    chartStatValue: {
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    chartDivider: {
+        width: 1,
+        height: 30,
+    },
+    // Exchanges
+    exchangesSection: {
+        marginBottom: 24,
+    },
+    sectionLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        letterSpacing: 1.5,
+        marginBottom: 12,
+    },
+    sectionHint: {
+        fontSize: 12,
+        marginBottom: 12,
+        marginTop: -8,
+    },
+    exchangeRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    exchangeCard: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        gap: 8,
+    },
+    exchangeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    exchangeName: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    // Features
     featuresSection: {
+        marginBottom: 24,
+    },
+    featuresList: {
         gap: 12,
     },
     featureCard: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
         borderRadius: 16,
         padding: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.06)',
+        overflow: 'hidden',
     },
-    featureIcon: {
+    featureMainRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    featureIconContainer: {
         width: 52,
         height: 52,
         borderRadius: 14,
-        justifyContent: 'center',
         alignItems: 'center',
+        justifyContent: 'center',
         marginRight: 14,
     },
     featureContent: {
         flex: 1,
     },
     featureTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '600',
         marginBottom: 4,
     },
     featureDescription: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.6)',
-        lineHeight: 18,
+        fontSize: 12,
     },
+    featureDetails: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+    },
+    featureDetailsText: {
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 12,
+    },
+    featureStats: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    featureStatItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    featureStatText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    // Bottom Section
     bottomSection: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: 'rgba(10, 22, 40, 0.95)',
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 36,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.08)',
     },
-    continueButton: {
-        borderRadius: 14,
-        overflow: 'hidden',
-        shadowColor: '#4DA6FF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
+    ctaButton: {
+        borderRadius: 28,
     },
-    buttonGradient: {
+    ctaButtonContent: {
+        height: 56,
+        flexDirection: 'row-reverse',
+    },
+    ctaButtonLabel: {
+        fontSize: 17,
+        fontWeight: '600',
+    },
+    ctaInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
-        gap: 8,
+        gap: 6,
+        marginTop: 12,
     },
-    continueText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    joinText: {
+    ctaInfoText: {
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.5)',
-        textAlign: 'center',
-        marginTop: 14,
+    },
+    // Orbital Visualization
+    orbitCard: {
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 24,
+        alignItems: 'center',
+    },
+    orbitHeader: {
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    orbitTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    orbitSubtitle: {
+        fontSize: 13,
+    },
+    orbitContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+    },
+    orbitRing: {
+        position: 'absolute',
+        borderRadius: 999,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+    },
+    innerRing: {
+        position: 'absolute',
+        borderRadius: 999,
+        borderWidth: 1,
+        borderStyle: 'dotted',
+        opacity: 0.5,
+    },
+    orbitItem: {
+        position: 'absolute',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    orbitItemAbsolute: {
+        position: 'absolute',
+        zIndex: 10,
+    },
+    connectionSvg: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+    },
+    connectionLine: {
+        position: 'absolute',
+        height: 2,
+        borderRadius: 1,
+    },
+    orbitBubble: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        minWidth: 60,
+    },
+    orbitLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        marginTop: 2,
+    },
+    centerContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    pulseRing: {
+        position: 'absolute',
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+    },
+    centerBotOuter: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    centerBot: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    botWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 70,
+        height: 70,
+    },
+    processingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 12,
+    },
+    processingDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    processingText: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    orbitFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingTop: 16,
+        marginTop: 8,
+        borderTopWidth: 1,
+    },
+    orbitFooterText: {
+        fontSize: 12,
     },
 });

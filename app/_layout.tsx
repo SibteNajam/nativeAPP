@@ -2,14 +2,21 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
+
+// Import theme context
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 
 // Prevent the splash screen from auto-hiding until we explicitly call hideAsync
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+// Inner component that uses theme
+function AppContent() {
+    const { paperTheme, isDark } = useTheme();
+
     useEffect(() => {
-        // Hide splash screen after app is mounted
+        // Hide splash screen after theme is loaded
         const hideSplash = async () => {
             await SplashScreen.hideAsync();
         };
@@ -17,7 +24,7 @@ export default function RootLayout() {
     }, []);
 
     return (
-        <>
+        <PaperProvider theme={paperTheme}>
             <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(onboarding)" />
@@ -25,7 +32,15 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             </Stack>
-            <StatusBar style="light" />
-        </>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+        </PaperProvider>
+    );
+}
+
+export default function RootLayout() {
+    return (
+        <ThemeProvider>
+            <AppContent />
+        </ThemeProvider>
     );
 }
