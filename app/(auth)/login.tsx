@@ -1,3 +1,8 @@
+/**
+ * Login Screen
+ * Clean login form with proper validation
+ */
+
 import React, { useState, useCallback } from 'react';
 import {
     View,
@@ -6,92 +11,113 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
-import {
-    Button,
-    TextInput,
-    Surface,
-    IconButton,
-    Divider,
-    HelperText,
-} from 'react-native-paper';
+import { TextInput, Button, IconButton, HelperText } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
-// Import theme hook
+// Theme
 import { useTheme } from '@/contexts/ThemeContext';
 
-interface FormErrors {
-    email?: string;
-    password?: string;
-    general?: string;
-}
+// Auth
+import { useAuth } from '@/contexts/AuthContext';
+
+// Validation
+import { validateLoginForm, hasErrors, FormErrors } from '@/utils/validation';
 
 export default function LoginScreen() {
     const { colors, isDark, toggleTheme } = useTheme();
+    const { login, isLoading, error, clearError } = useAuth();
 
+    // Form state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+
+    // UI state
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
-    const [isLoading, setIsLoading] = useState(false);
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-    const validateEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+    /**
+     * Handle field blur - mark field as touched for validation display
+     */
+    const handleBlur = (field: string) => {
+        setTouched(prev => ({ ...prev, [field]: true }));
     };
 
-    const validateForm = (): boolean => {
-        const newErrors: FormErrors = {};
-
-        if (!email.trim()) {
-            newErrors.email = 'Email is required';
-        } else if (!validateEmail(email)) {
-            newErrors.email = 'Please enter a valid email';
-        }
-
-        if (!password) {
-            newErrors.password = 'Password is required';
-        } else if (password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
+    /**
+     * Validate form and submit
+     */
     const handleLogin = useCallback(async () => {
-        if (!validateForm()) {
+        // Clear any previous auth errors
+        clearError();
+
+        // Validate all fields
+        const validationErrors = validateLoginForm(email, password);
+        setErrors(validationErrors);
+
+        // Mark all fields as touched
+        setTouched({
+            email: true,
+            password: true,
+        });
+
+        if (hasErrors(validationErrors)) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             return;
         }
 
-        setIsLoading(true);
-        setErrors({});
+        // Submit login
+        const response = await login({
+            email: email.trim().toLowerCase(),
+            password,
+        });
 
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+        if (response.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.replace('/(tabs)');
-        } catch (error) {
-            setErrors({ general: 'Invalid email or password' });
+            // Navigation is handled by AuthContext
+        } else {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } finally {
-            setIsLoading(false);
         }
-    }, [email, password]);
+    }, [email, password, login, clearError]);
 
+    /**
+     * Navigate to signup
+     */
     const handleSignUp = () => {
         router.push('/signup');
     };
 
+    /**
+     * Navigate back
+     */
     const handleBack = () => {
         router.back();
     };
 
+    /**
+     * Forgot password handler
+     */
+    const handleForgotPassword = () => {
+        // TODO: Navigate to forgot password screen
+        // router.push('/forgot-password');
+    };
+
+    /**
+     * Get error message for a field (only if touched)
+     */
+    const getFieldError = (field: string): string | undefined => {
+        return touched[field] ? errors[field] : undefined;
+    };
+
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <KeyboardAvoidingView
+            style={[styles.container, { backgroundColor: colors.background }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
             {/* Header */}
             <View style={styles.header}>
                 <IconButton
@@ -110,161 +136,154 @@ export default function LoginScreen() {
                 />
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
             >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                {/* Title */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500 }}
                 >
-                    {/* Logo & Title */}
-                    <View style={styles.titleSection}>
-                        <Surface style={[styles.logoIcon, { backgroundColor: colors.surface }]} elevation={2}>
-                            <MaterialCommunityIcons name="robot" size={32} color={colors.primary} />
-                        </Surface>
-                        <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
-                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue trading</Text>
-                    </View>
+                    <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                        Sign in to continue trading
+                    </Text>
+                </MotiView>
 
-                    {/* Error Message */}
-                    {errors.general && (
-                        <Surface style={[styles.errorBanner, { backgroundColor: colors.errorLight }]} elevation={0}>
+                {/* Form */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 30 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500, delay: 100 }}
+                    style={styles.form}
+                >
+                    {/* Auth Error Display */}
+                    {error && (
+                        <View style={[styles.errorBanner, { backgroundColor: `${colors.error}15` }]}>
                             <MaterialCommunityIcons name="alert-circle" size={20} color={colors.error} />
-                            <Text style={[styles.errorBannerText, { color: colors.error }]}>{errors.general}</Text>
-                        </Surface>
+                            <Text style={[styles.errorBannerText, { color: colors.error }]}>{error}</Text>
+                        </View>
                     )}
 
-                    {/* Form */}
-                    <View style={styles.formSection}>
+                    {/* Email */}
+                    <View style={styles.inputContainer}>
                         <TextInput
                             label="Email"
                             value={email}
                             onChangeText={setEmail}
+                            onBlur={() => handleBlur('email')}
                             mode="outlined"
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoComplete="email"
-                            error={!!errors.email}
-                            left={<TextInput.Icon icon="email-outline" color={colors.textLight} />}
+                            error={!!getFieldError('email')}
                             style={[styles.input, { backgroundColor: colors.surface }]}
                             outlineColor={colors.border}
                             activeOutlineColor={colors.primary}
                             textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
+                            left={<TextInput.Icon icon="email" color={colors.textLight} />}
                         />
-                        {errors.email && (
-                            <HelperText type="error" visible={!!errors.email}>
-                                {errors.email}
+                        {getFieldError('email') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('email')}
                             </HelperText>
                         )}
+                    </View>
 
+                    {/* Password */}
+                    <View style={styles.inputContainer}>
                         <TextInput
                             label="Password"
                             value={password}
                             onChangeText={setPassword}
+                            onBlur={() => handleBlur('password')}
                             mode="outlined"
                             secureTextEntry={!showPassword}
-                            autoComplete="password"
-                            error={!!errors.password}
-                            left={<TextInput.Icon icon="lock-outline" color={colors.textLight} />}
-                            right={
-                                <TextInput.Icon
-                                    icon={showPassword ? "eye-off-outline" : "eye-outline"}
-                                    color={colors.textLight}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                />
-                            }
+                            autoCapitalize="none"
+                            error={!!getFieldError('password')}
                             style={[styles.input, { backgroundColor: colors.surface }]}
                             outlineColor={colors.border}
                             activeOutlineColor={colors.primary}
                             textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
+                            left={<TextInput.Icon icon="lock" color={colors.textLight} />}
+                            right={
+                                <TextInput.Icon
+                                    icon={showPassword ? 'eye-off' : 'eye'}
+                                    color={colors.textLight}
+                                    onPress={() => setShowPassword(!showPassword)}
+                                />
+                            }
                         />
-                        {errors.password && (
-                            <HelperText type="error" visible={!!errors.password}>
-                                {errors.password}
+                        {getFieldError('password') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('password')}
                             </HelperText>
                         )}
-
-                        <Button
-                            mode="text"
-                            textColor={colors.primary}
-                            style={styles.forgotButton}
-                            labelStyle={styles.forgotButtonLabel}
-                        >
-                            Forgot Password?
-                        </Button>
                     </View>
 
-                    {/* Sign In Button */}
+                    {/* Forgot Password */}
+                    <Pressable onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
+                        <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                            Forgot Password?
+                        </Text>
+                    </Pressable>
+
+                    {/* Submit Button */}
                     <Button
                         mode="contained"
                         onPress={handleLogin}
                         loading={isLoading}
                         disabled={isLoading}
-                        style={styles.signInButton}
-                        contentStyle={styles.signInButtonContent}
-                        labelStyle={styles.signInButtonLabel}
+                        style={styles.submitButton}
+                        contentStyle={styles.submitButtonContent}
+                        labelStyle={styles.submitButtonLabel}
                         buttonColor={colors.primary}
                     >
-                        Sign In
+                        {isLoading ? 'Signing In...' : 'Sign In'}
                     </Button>
 
                     {/* Divider */}
-                    <View style={styles.dividerContainer}>
-                        <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
-                        <Text style={[styles.dividerText, { color: colors.textLight }]}>or continue with</Text>
-                        <Divider style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <View style={styles.divider}>
+                        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                        <Text style={[styles.dividerText, { color: colors.textLight }]}>OR</Text>
+                        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
                     </View>
 
-                    {/* Social Buttons */}
-                    <View style={styles.socialButtons}>
-                        <Button
-                            mode="outlined"
-                            onPress={() => { }}
-                            style={[styles.socialButton, { borderColor: colors.border }]}
-                            contentStyle={styles.socialButtonContent}
-                            labelStyle={[styles.socialButtonLabel, { color: colors.text }]}
-                            textColor={colors.text}
-                            icon={({ size }) => (
-                                <MaterialCommunityIcons name="google" size={20} color="#EA4335" />
-                            )}
-                        >
-                            Google
-                        </Button>
-                        <Button
-                            mode="outlined"
-                            onPress={() => { }}
-                            style={[styles.socialButton, { borderColor: colors.border }]}
-                            contentStyle={styles.socialButtonContent}
-                            labelStyle={[styles.socialButtonLabel, { color: colors.text }]}
-                            textColor={colors.text}
-                            icon={({ size }) => (
-                                <MaterialCommunityIcons name="fingerprint" size={20} color={colors.primary} />
-                            )}
-                        >
-                            Biometric
-                        </Button>
-                    </View>
+                    {/* Social Login Placeholder */}
+                    <Button
+                        mode="outlined"
+                        onPress={() => { }}
+                        style={styles.socialButton}
+                        contentStyle={styles.socialButtonContent}
+                        labelStyle={[styles.socialButtonLabel, { color: colors.text }]}
+                        icon={({ color }) => (
+                            <MaterialCommunityIcons name="google" size={20} color={colors.text} />
+                        )}
+                    >
+                        Continue with Google
+                    </Button>
+                </MotiView>
 
-                    {/* Sign Up Link */}
-                    <View style={styles.signUpContainer}>
-                        <Text style={[styles.signUpText, { color: colors.textSecondary }]}>Don't have an account? </Text>
-                        <Button
-                            mode="text"
-                            onPress={handleSignUp}
-                            textColor={colors.primary}
-                            compact
-                            labelStyle={styles.signUpLink}
-                        >
-                            Sign Up
-                        </Button>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </View>
+                {/* Signup Link */}
+                <MotiView
+                    from={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ type: 'timing', duration: 500, delay: 300 }}
+                    style={styles.footer}
+                >
+                    <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                        Don't have an account?{' '}
+                    </Text>
+                    <Pressable onPress={handleSignUp}>
+                        <Text style={[styles.footerLink, { color: colors.primary }]}>Sign Up</Text>
+                    </Pressable>
+                </MotiView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -274,9 +293,11 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
         paddingTop: 44,
         paddingHorizontal: 12,
+        paddingBottom: 8,
     },
     backButton: {
         margin: 0,
@@ -285,25 +306,12 @@ const styles = StyleSheet.create({
         margin: 0,
         borderRadius: 12,
     },
-    keyboardView: {
+    scrollView: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: 24,
         paddingBottom: 40,
-    },
-    titleSection: {
-        alignItems: 'center',
-        marginTop: 24,
-        marginBottom: 32,
-    },
-    logoIcon: {
-        width: 72,
-        height: 72,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
     },
     title: {
         fontSize: 28,
@@ -311,85 +319,83 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     subtitle: {
-        fontSize: 15,
+        fontSize: 16,
+        marginBottom: 40,
+    },
+    form: {
+        gap: 4,
+    },
+    inputContainer: {
+        marginBottom: 8,
+    },
+    input: {
+        fontSize: 16,
     },
     errorBanner: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 12,
         borderRadius: 12,
-        padding: 14,
-        marginBottom: 20,
-        gap: 10,
+        marginBottom: 16,
+        gap: 8,
     },
     errorBannerText: {
-        fontSize: 14,
         flex: 1,
+        fontSize: 14,
     },
-    formSection: {
-        marginBottom: 24,
-    },
-    input: {
-        marginBottom: 4,
-    },
-    inputOutline: {
-        borderRadius: 12,
-    },
-    forgotButton: {
+    forgotPasswordButton: {
         alignSelf: 'flex-end',
-        marginTop: 4,
+        marginBottom: 16,
+        paddingVertical: 4,
     },
-    forgotButtonLabel: {
+    forgotPasswordText: {
         fontSize: 14,
         fontWeight: '500',
     },
-    signInButton: {
+    submitButton: {
         borderRadius: 28,
-        marginBottom: 24,
     },
-    signInButtonContent: {
+    submitButtonContent: {
         height: 56,
     },
-    signInButtonLabel: {
+    submitButtonLabel: {
         fontSize: 17,
         fontWeight: '600',
     },
-    dividerContainer: {
+    divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        marginVertical: 24,
     },
-    divider: {
+    dividerLine: {
         flex: 1,
+        height: 1,
     },
     dividerText: {
         marginHorizontal: 16,
         fontSize: 13,
     },
-    socialButtons: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 32,
-    },
     socialButton: {
-        flex: 1,
-        borderRadius: 14,
+        borderRadius: 28,
+        borderColor: '#DDD',
     },
     socialButtonContent: {
         height: 52,
     },
     socialButtonLabel: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '500',
     },
-    signUpContainer: {
+    footer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 32,
     },
-    signUpText: {
+    footerText: {
         fontSize: 15,
     },
-    signUpLink: {
+    footerLink: {
         fontSize: 15,
         fontWeight: '600',
     },

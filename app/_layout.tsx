@@ -5,8 +5,10 @@ import { useEffect } from 'react';
 import { PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 
-// Import theme context
+// Import contexts
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ExchangeProvider } from '@/contexts/ExchangeContext';
 
 // Prevent the splash screen from auto-hiding until we explicitly call hideAsync
 SplashScreen.preventAutoHideAsync();
@@ -40,7 +42,12 @@ function AppContent() {
 export default function RootLayout() {
     return (
         <ThemeProvider>
-            <AppContent />
+            <AuthProvider>
+                <ExchangeProvider>
+                    <AppContent />
+                </ExchangeProvider>
+            </AuthProvider>
         </ThemeProvider>
     );
 }
+

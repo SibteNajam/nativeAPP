@@ -1,3 +1,8 @@
+/**
+ * Signup Screen
+ * Clean registration form with proper validation
+ */
+
 import React, { useState, useCallback } from 'react';
 import {
     View,
@@ -6,129 +11,124 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
+    Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import {
-    Button,
-    TextInput,
-    Surface,
-    IconButton,
-    HelperText,
-    ProgressBar,
-} from 'react-native-paper';
+import { TextInput, Button, IconButton, HelperText } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 
-// Import theme hook
+// Theme
 import { useTheme } from '@/contexts/ThemeContext';
 
-interface FormErrors {
-    name?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-    general?: string;
-}
+// Auth
+import { useAuth } from '@/contexts/AuthContext';
 
-type PasswordStrength = 'weak' | 'medium' | 'strong';
+// Validation
+import { validateRegisterForm, hasErrors, FormErrors } from '@/utils/validation';
 
 export default function SignupScreen() {
     const { colors, isDark, toggleTheme } = useTheme();
+    const { register, isLoading, error, clearError } = useAuth();
 
-    const [name, setName] = useState('');
+    // Form state
+    const [firstName, setFirstName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    // UI state
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
-    const [isLoading, setIsLoading] = useState(false);
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-    const getPasswordStrength = (pass: string): PasswordStrength => {
-        if (pass.length < 6) return 'weak';
-        if (pass.length < 10 || !/[A-Z]/.test(pass) || !/[0-9]/.test(pass)) return 'medium';
-        return 'strong';
+    /**
+     * Handle field blur - mark field as touched for validation display
+     */
+    const handleBlur = (field: string) => {
+        setTouched(prev => ({ ...prev, [field]: true }));
     };
 
-    const passwordStrength = getPasswordStrength(password);
-
-    const getStrengthInfo = () => {
-        switch (passwordStrength) {
-            case 'weak': return { progress: 0.33, color: colors.error, label: 'Weak' };
-            case 'medium': return { progress: 0.66, color: colors.warning, label: 'Medium' };
-            case 'strong': return { progress: 1, color: colors.success, label: 'Strong' };
-        }
-    };
-
-    const validateEmail = (email: string) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    };
-
-    const validateForm = (): boolean => {
-        const newErrors: FormErrors = {};
-
-        if (!name.trim()) {
-            newErrors.name = 'Name is required';
-        } else if (name.trim().length < 2) {
-            newErrors.name = 'Name must be at least 2 characters';
-        }
-
-        if (!email.trim()) {
-            newErrors.email = 'Email is required';
-        } else if (!validateEmail(email)) {
-            newErrors.email = 'Please enter a valid email';
-        }
-
-        if (!password) {
-            newErrors.password = 'Password is required';
-        } else if (password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
-        }
-
-        if (!confirmPassword) {
-            newErrors.confirmPassword = 'Please confirm your password';
-        } else if (password !== confirmPassword) {
-            newErrors.confirmPassword = 'Passwords do not match';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
+    /**
+     * Validate form and submit
+     */
     const handleSignup = useCallback(async () => {
-        if (!validateForm()) {
+        // Clear any previous auth errors
+        clearError();
+
+        // Validate all fields
+        const validationErrors = validateRegisterForm(firstName, email, password, confirmPassword);
+        setErrors(validationErrors);
+
+        // Mark all fields as touched
+        setTouched({
+            firstName: true,
+            email: true,
+            password: true,
+            confirmPassword: true,
+        });
+
+        if (hasErrors(validationErrors)) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             return;
         }
 
-        setIsLoading(true);
-        setErrors({});
+        // Submit registration
+        const response = await register({
+            firstName: firstName.trim(),
+            email: email.trim().toLowerCase(),
+            password,
+            confirmPassword,
+        });
 
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+        if (response.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.replace('/(tabs)');
-        } catch (error) {
-            setErrors({ general: 'Something went wrong. Please try again.' });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [name, email, password, confirmPassword]);
 
+            // Show success message
+            Alert.alert(
+                'Registration Successful! 🎉',
+                'Your account has been created. Please login to continue.',
+                [
+                    {
+                        text: 'Go to Login',
+                        onPress: () => router.replace('/login'),
+                    },
+                ]
+            );
+        } else {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+    }, [firstName, email, password, confirmPassword, register, clearError]);
+
+    /**
+     * Navigate to login
+     */
+    const handleLogin = () => {
+        router.push('/login');
+    };
+
+    /**
+     * Navigate back
+     */
     const handleBack = () => {
         router.back();
     };
 
-    const handleSignIn = () => {
-        router.push('/login');
+    /**
+     * Get error message for a field (only if touched)
+     */
+    const getFieldError = (field: string): string | undefined => {
+        return touched[field] ? errors[field] : undefined;
     };
 
-    const strengthInfo = getStrengthInfo();
-
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <KeyboardAvoidingView
+            style={[styles.container, { backgroundColor: colors.background }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
             {/* Header */}
             <View style={styles.header}>
                 <IconButton
@@ -147,184 +147,189 @@ export default function SignupScreen() {
                 />
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
             >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                {/* Title */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500 }}
                 >
-                    {/* Title */}
-                    <View style={styles.titleSection}>
-                        <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
-                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Start your trading journey today</Text>
-                    </View>
+                    <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                        Start your trading journey today
+                    </Text>
+                </MotiView>
 
-                    {/* Error Message */}
-                    {errors.general && (
-                        <Surface style={[styles.errorBanner, { backgroundColor: colors.errorLight }]} elevation={0}>
+                {/* Form */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 30 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 500, delay: 100 }}
+                    style={styles.form}
+                >
+                    {/* Auth Error Display */}
+                    {error && (
+                        <View style={[styles.errorBanner, { backgroundColor: `${colors.error}15` }]}>
                             <MaterialCommunityIcons name="alert-circle" size={20} color={colors.error} />
-                            <Text style={[styles.errorBannerText, { color: colors.error }]}>{errors.general}</Text>
-                        </Surface>
+                            <Text style={[styles.errorBannerText, { color: colors.error }]}>{error}</Text>
+                        </View>
                     )}
 
-                    {/* Form */}
-                    <View style={styles.formSection}>
+                    {/* First Name */}
+                    <View style={styles.inputContainer}>
                         <TextInput
-                            label="Full Name"
-                            value={name}
-                            onChangeText={setName}
+                            label="First Name"
+                            value={firstName}
+                            onChangeText={setFirstName}
+                            onBlur={() => handleBlur('firstName')}
                             mode="outlined"
                             autoCapitalize="words"
                             autoComplete="name"
-                            error={!!errors.name}
-                            left={<TextInput.Icon icon="account-outline" color={colors.textLight} />}
+                            error={!!getFieldError('firstName')}
                             style={[styles.input, { backgroundColor: colors.surface }]}
                             outlineColor={colors.border}
                             activeOutlineColor={colors.primary}
                             textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
+                            left={<TextInput.Icon icon="account" color={colors.textLight} />}
                         />
-                        {errors.name && (
-                            <HelperText type="error" visible={!!errors.name}>
-                                {errors.name}
+                        {getFieldError('firstName') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('firstName')}
                             </HelperText>
                         )}
+                    </View>
 
+                    {/* Email */}
+                    <View style={styles.inputContainer}>
                         <TextInput
                             label="Email"
                             value={email}
                             onChangeText={setEmail}
+                            onBlur={() => handleBlur('email')}
                             mode="outlined"
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoComplete="email"
-                            error={!!errors.email}
-                            left={<TextInput.Icon icon="email-outline" color={colors.textLight} />}
+                            error={!!getFieldError('email')}
                             style={[styles.input, { backgroundColor: colors.surface }]}
                             outlineColor={colors.border}
                             activeOutlineColor={colors.primary}
                             textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
+                            left={<TextInput.Icon icon="email" color={colors.textLight} />}
                         />
-                        {errors.email && (
-                            <HelperText type="error" visible={!!errors.email}>
-                                {errors.email}
-                            </HelperText>
-                        )}
-
-                        <TextInput
-                            label="Password"
-                            value={password}
-                            onChangeText={setPassword}
-                            mode="outlined"
-                            secureTextEntry={!showPassword}
-                            autoComplete="new-password"
-                            error={!!errors.password}
-                            left={<TextInput.Icon icon="lock-outline" color={colors.textLight} />}
-                            right={
-                                <TextInput.Icon
-                                    icon={showPassword ? "eye-off-outline" : "eye-outline"}
-                                    color={colors.textLight}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                />
-                            }
-                            style={[styles.input, { backgroundColor: colors.surface }]}
-                            outlineColor={colors.border}
-                            activeOutlineColor={colors.primary}
-                            textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
-                        />
-
-                        {/* Password Strength */}
-                        {password.length > 0 && (
-                            <View style={styles.strengthContainer}>
-                                <ProgressBar
-                                    progress={strengthInfo.progress}
-                                    color={strengthInfo.color}
-                                    style={[styles.strengthBar, { backgroundColor: colors.border }]}
-                                />
-                                <Text style={[styles.strengthLabel, { color: strengthInfo.color }]}>
-                                    {strengthInfo.label} password
-                                </Text>
-                            </View>
-                        )}
-
-                        {errors.password && (
-                            <HelperText type="error" visible={!!errors.password}>
-                                {errors.password}
-                            </HelperText>
-                        )}
-
-                        <TextInput
-                            label="Confirm Password"
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            mode="outlined"
-                            secureTextEntry={!showConfirmPassword}
-                            autoComplete="new-password"
-                            error={!!errors.confirmPassword}
-                            left={<TextInput.Icon icon="lock-check-outline" color={colors.textLight} />}
-                            right={
-                                <TextInput.Icon
-                                    icon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                                    color={colors.textLight}
-                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                                />
-                            }
-                            style={[styles.input, { backgroundColor: colors.surface }]}
-                            outlineColor={colors.border}
-                            activeOutlineColor={colors.primary}
-                            textColor={colors.text}
-                            outlineStyle={styles.inputOutline}
-                        />
-                        {errors.confirmPassword && (
-                            <HelperText type="error" visible={!!errors.confirmPassword}>
-                                {errors.confirmPassword}
+                        {getFieldError('email') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('email')}
                             </HelperText>
                         )}
                     </View>
 
-                    {/* Sign Up Button */}
+                    {/* Password */}
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            label="Password"
+                            value={password}
+                            onChangeText={setPassword}
+                            onBlur={() => handleBlur('password')}
+                            mode="outlined"
+                            secureTextEntry={!showPassword}
+                            autoCapitalize="none"
+                            error={!!getFieldError('password')}
+                            style={[styles.input, { backgroundColor: colors.surface }]}
+                            outlineColor={colors.border}
+                            activeOutlineColor={colors.primary}
+                            textColor={colors.text}
+                            left={<TextInput.Icon icon="lock" color={colors.textLight} />}
+                            right={
+                                <TextInput.Icon
+                                    icon={showPassword ? 'eye-off' : 'eye'}
+                                    color={colors.textLight}
+                                    onPress={() => setShowPassword(!showPassword)}
+                                />
+                            }
+                        />
+                        {getFieldError('password') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('password')}
+                            </HelperText>
+                        )}
+                    </View>
+
+                    {/* Confirm Password */}
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            label="Confirm Password"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            onBlur={() => handleBlur('confirmPassword')}
+                            mode="outlined"
+                            secureTextEntry={!showConfirmPassword}
+                            autoCapitalize="none"
+                            error={!!getFieldError('confirmPassword')}
+                            style={[styles.input, { backgroundColor: colors.surface }]}
+                            outlineColor={colors.border}
+                            activeOutlineColor={colors.primary}
+                            textColor={colors.text}
+                            left={<TextInput.Icon icon="lock-check" color={colors.textLight} />}
+                            right={
+                                <TextInput.Icon
+                                    icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                                    color={colors.textLight}
+                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                />
+                            }
+                        />
+                        {getFieldError('confirmPassword') && (
+                            <HelperText type="error" visible>
+                                {getFieldError('confirmPassword')}
+                            </HelperText>
+                        )}
+                    </View>
+
+                    {/* Submit Button */}
                     <Button
                         mode="contained"
                         onPress={handleSignup}
                         loading={isLoading}
                         disabled={isLoading}
-                        style={styles.signUpButton}
-                        contentStyle={styles.signUpButtonContent}
-                        labelStyle={styles.signUpButtonLabel}
+                        style={styles.submitButton}
+                        contentStyle={styles.submitButtonContent}
+                        labelStyle={styles.submitButtonLabel}
                         buttonColor={colors.primary}
                     >
-                        Create Account
+                        {isLoading ? 'Creating Account...' : 'Create Account'}
                     </Button>
 
                     {/* Terms */}
-                    <Text style={[styles.termsText, { color: colors.textLight }]}>
+                    <Text style={[styles.termsText, { color: colors.textSecondary }]}>
                         By signing up, you agree to our{' '}
-                        <Text style={[styles.termsLink, { color: colors.primary }]}>Terms of Service</Text>
+                        <Text style={{ color: colors.primary }}>Terms of Service</Text>
                         {' '}and{' '}
-                        <Text style={[styles.termsLink, { color: colors.primary }]}>Privacy Policy</Text>
+                        <Text style={{ color: colors.primary }}>Privacy Policy</Text>
                     </Text>
+                </MotiView>
 
-                    {/* Sign In Link */}
-                    <View style={styles.signInContainer}>
-                        <Text style={[styles.signInText, { color: colors.textSecondary }]}>Already have an account? </Text>
-                        <Button
-                            mode="text"
-                            onPress={handleSignIn}
-                            textColor={colors.primary}
-                            compact
-                            labelStyle={styles.signInLink}
-                        >
-                            Sign In
-                        </Button>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </View>
+                {/* Login Link */}
+                <MotiView
+                    from={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ type: 'timing', duration: 500, delay: 300 }}
+                    style={styles.footer}
+                >
+                    <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                        Already have an account?{' '}
+                    </Text>
+                    <Pressable onPress={handleLogin}>
+                        <Text style={[styles.footerLink, { color: colors.primary }]}>Sign In</Text>
+                    </Pressable>
+                </MotiView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -334,9 +339,11 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
         paddingTop: 44,
         paddingHorizontal: 12,
+        paddingBottom: 8,
     },
     backButton: {
         margin: 0,
@@ -345,16 +352,12 @@ const styles = StyleSheet.create({
         margin: 0,
         borderRadius: 12,
     },
-    keyboardView: {
+    scrollView: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: 24,
         paddingBottom: 40,
-    },
-    titleSection: {
-        marginTop: 16,
-        marginBottom: 28,
     },
     title: {
         fontSize: 28,
@@ -362,71 +365,57 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     subtitle: {
-        fontSize: 15,
+        fontSize: 16,
+        marginBottom: 32,
+    },
+    form: {
+        gap: 4,
+    },
+    inputContainer: {
+        marginBottom: 8,
+    },
+    input: {
+        fontSize: 16,
     },
     errorBanner: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 12,
         borderRadius: 12,
-        padding: 14,
-        marginBottom: 20,
-        gap: 10,
+        marginBottom: 16,
+        gap: 8,
     },
     errorBannerText: {
-        fontSize: 14,
         flex: 1,
+        fontSize: 14,
     },
-    formSection: {
-        marginBottom: 24,
-    },
-    input: {
-        marginBottom: 4,
-    },
-    inputOutline: {
-        borderRadius: 12,
-    },
-    strengthContainer: {
-        marginTop: 4,
-        marginBottom: 8,
-    },
-    strengthBar: {
-        height: 4,
-        borderRadius: 2,
-    },
-    strengthLabel: {
-        fontSize: 12,
-        fontWeight: '500',
-        marginTop: 6,
-    },
-    signUpButton: {
+    submitButton: {
+        marginTop: 16,
         borderRadius: 28,
-        marginBottom: 16,
     },
-    signUpButtonContent: {
+    submitButtonContent: {
         height: 56,
     },
-    signUpButtonLabel: {
+    submitButtonLabel: {
         fontSize: 17,
         fontWeight: '600',
     },
     termsText: {
         fontSize: 12,
         textAlign: 'center',
+        marginTop: 16,
         lineHeight: 18,
-        marginBottom: 24,
     },
-    termsLink: {
-        fontWeight: '500',
-    },
-    signInContainer: {
+    footer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        marginTop: 32,
     },
-    signInText: {
+    footerText: {
         fontSize: 15,
     },
-    signInLink: {
+    footerLink: {
         fontSize: 15,
         fontWeight: '600',
     },
