@@ -12,7 +12,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
-    Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { TextInput, Button, IconButton, HelperText } from 'react-native-paper';
@@ -25,6 +24,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 // Auth
 import { useAuth } from '@/contexts/AuthContext';
+
+// Components
+import OTPSentNotification from '@/components/auth/OTPSentNotification';
 
 // Validation
 import { validateRegisterForm, hasErrors, FormErrors } from '@/utils/validation';
@@ -44,6 +46,7 @@ export default function SignupScreen() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
+    const [showOTPModal, setShowOTPModal] = useState(false);
 
     /**
      * Handle field blur - mark field as touched for validation display
@@ -87,24 +90,25 @@ export default function SignupScreen() {
         if (response.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Show success message and redirect to OTP verification
-            Alert.alert(
-                'Check Your Email! 📧',
-                "We've sent a verification code to your email. Please verify to continue.",
-                [
-                    {
-                        text: 'Verify Now',
-                        onPress: () => router.push({
-                            pathname: '/(auth)/otp-verification',
-                            params: { email: email.trim().toLowerCase() }
-                        }),
-                    },
-                ]
-            );
+            // Show custom OTP notification modal
+            setShowOTPModal(true);
         } else {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
     }, [firstName, email, password, confirmPassword, register, clearError]);
+
+    /**
+     * Handle OTP verification navigation
+     */
+    const handleVerifyNow = useCallback(() => {
+        setShowOTPModal(false);
+        setTimeout(() => {
+            router.push({
+                pathname: '/(auth)/otp-verification',
+                params: { email: email.trim().toLowerCase() }
+            });
+        }, 300);
+    }, [email]);
 
     /**
      * Navigate to login
@@ -332,6 +336,13 @@ export default function SignupScreen() {
                     </Pressable>
                 </MotiView>
             </ScrollView>
+
+            {/* OTP Sent Notification Modal */}
+            <OTPSentNotification
+                visible={showOTPModal}
+                onVerifyNow={handleVerifyNow}
+                email={email}
+            />
         </KeyboardAvoidingView>
     );
 }

@@ -68,11 +68,11 @@ const AnimatedCandleChart = ({ colors }: { colors: any }) => {
                 <View style={styles.chartHeader}>
                     <View style={styles.chartTitleRow}>
                         <MaterialCommunityIcons name="chart-line" size={18} color={colors.primary} />
-                        <Text style={[styles.chartTitle, { color: colors.text }]}>Live Performance</Text>
+                        <Text style={[styles.chartTitle, { color: colors.text }]}>30-Day Performance</Text>
                     </View>
                     <View style={[styles.chartBadge, { backgroundColor: `${colors.success}20` }]}>
                         <MaterialCommunityIcons name="trending-up" size={14} color={colors.success} />
-                        <Text style={[styles.chartBadgeText, { color: colors.success }]}>+24.5%</Text>
+                        <Text style={[styles.chartBadgeText, { color: colors.success }]}>+6.2%</Text>
                     </View>
                 </View>
 
@@ -159,17 +159,17 @@ const AnimatedCandleChart = ({ colors }: { colors: any }) => {
                 <View style={[styles.chartFooter, { borderTopColor: colors.border }]}>
                     <View style={styles.chartStat}>
                         <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Win Rate</Text>
-                        <Text style={[styles.chartStatValue, { color: colors.text }]}>94.7%</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.text }]}>71.3%</Text>
                     </View>
                     <View style={[styles.chartDivider, { backgroundColor: colors.border }]} />
                     <View style={styles.chartStat}>
-                        <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Profit</Text>
-                        <Text style={[styles.chartStatValue, { color: colors.success }]}>+$12,450</Text>
+                        <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Monthly</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.success }]}>+$2,845</Text>
                     </View>
                     <View style={[styles.chartDivider, { backgroundColor: colors.border }]} />
                     <View style={styles.chartStat}>
                         <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Trades</Text>
-                        <Text style={[styles.chartStatValue, { color: colors.text }]}>847</Text>
+                        <Text style={[styles.chartStatValue, { color: colors.text }]}>124</Text>
                     </View>
                 </View>
             </Surface>
@@ -201,9 +201,9 @@ const AllInOneOrbit = ({ colors }: { colors: any }) => {
         >
             <Surface style={[styles.orbitCard, { backgroundColor: colors.surface }]} elevation={2}>
                 <View style={styles.orbitHeader}>
-                    <Text style={[styles.orbitTitle, { color: colors.text }]}>All-In-One Trading Intelligence</Text>
+                    <Text style={[styles.orbitTitle, { color: colors.text }]}>Comprehensive Analysis Suite</Text>
                     <Text style={[styles.orbitSubtitle, { color: colors.textSecondary }]}>
-                        6 powerful engines working together
+                        Multi-source intelligence for better decisions
                     </Text>
                 </View>
 
@@ -318,7 +318,7 @@ const AllInOneOrbit = ({ colors }: { colors: any }) => {
                 <View style={[styles.orbitFooter, { borderTopColor: colors.border }]}>
                     <MaterialCommunityIcons name="information-outline" size={16} color={colors.textLight} />
                     <Text style={[styles.orbitFooterText, { color: colors.textSecondary }]}>
-                        AI combines all data sources for smarter decisions
+                        Integrated data sources provide comprehensive market analysis
                     </Text>
                 </View>
             </Surface>
@@ -396,58 +396,58 @@ export default function FeaturesScreen() {
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    // Features with dynamic colors and details
+    // Features with dynamic colors and details - More meaningful content
     const FEATURES = [
         {
             icon: 'brain',
-            title: 'AI-Powered Engine',
-            description: 'Machine learning for smart trading',
+            title: 'AI-Powered Analysis',
+            description: 'Machine learning pattern recognition',
             color: colors.primary,
             bgColor: `${colors.primary}20`,
-            details: 'Our AI analyzes millions of data points in real-time, learning from market patterns to predict optimal entry and exit points. Trained on 5+ years of historical data.',
+            details: 'Neural networks analyze technical indicators, volume patterns, and market sentiment. Uses ensemble learning with Random Forest and LSTM models for price prediction. Continuously adapts to changing market conditions.',
             stats: [
-                { icon: 'database', value: '10M+ trades' },
-                { icon: 'clock-fast', value: '< 10ms' },
-                { icon: 'chart-line', value: '94.7% accuracy' },
+                { icon: 'database', value: '3+ years data' },
+                { icon: 'clock-fast', value: '< 50ms' },
+                { icon: 'brain', value: 'Deep learning' },
             ],
         },
         {
             icon: 'chart-timeline-variant',
-            title: 'Technical Analysis',
-            description: 'Auto pattern detection',
+            title: 'Technical Indicators',
+            description: 'Multi-timeframe analysis suite',
             color: '#3B82F6',
             bgColor: '#3B82F620',
-            details: 'Automatically detects 50+ chart patterns including head & shoulders, double tops, triangles, and more. Real-time RSI, MACD, and Bollinger Band analysis.',
+            details: 'Combines RSI, MACD, EMA crossovers, Bollinger Bands, and volume analysis. Detects support/resistance levels and trend confirmations across multiple timeframes for higher probability setups.',
             stats: [
-                { icon: 'shape', value: '50+ patterns' },
-                { icon: 'gauge', value: '15 indicators' },
-                { icon: 'bell', value: 'Smart alerts' },
+                { icon: 'gauge', value: '12 indicators' },
+                { icon: 'chart-bell-curve', value: 'Multi-TF' },
+                { icon: 'target', value: 'S/R levels' },
             ],
         },
         {
             icon: 'shield-lock',
-            title: 'Bank-Grade Security',
-            description: 'API keys encrypted with AES-256',
+            title: 'Secure API Integration',
+            description: 'Read-only encrypted keys',
             color: colors.success,
             bgColor: `${colors.success}20`,
-            details: 'Your API keys are encrypted with military-grade AES-256 encryption. We never withdraw or transfer funds—only trade execution permissions required.',
+            details: 'API keys stored with AES-256 encryption. Only trade execution permissions needed—withdrawal rights never required. Keys isolated per user with zero access to funds.',
             stats: [
                 { icon: 'lock', value: 'AES-256' },
-                { icon: 'shield-check', value: 'SOC 2' },
-                { icon: 'key', value: 'Read-only keys' },
+                { icon: 'shield-check', value: 'Trade only' },
+                { icon: 'eye-off', value: 'Zero access' },
             ],
         },
         {
             icon: 'lightning-bolt',
-            title: 'Ultra-Low Latency',
-            description: 'Execute trades in <50ms',
+            title: 'Fast Execution',
+            description: 'Low latency order placement',
             color: colors.warning,
             bgColor: `${colors.warning}20`,
-            details: 'Co-located servers near major exchanges ensure lightning-fast order execution. Average latency of just 12ms means you never miss a trade opportunity.',
+            details: 'Direct WebSocket connections to exchanges minimize delays. Orders placed within 100ms of signal generation. Automatic retry logic ensures reliability during network issues.',
             stats: [
-                { icon: 'server', value: '5 regions' },
-                { icon: 'speedometer', value: '12ms avg' },
-                { icon: 'wifi', value: '99.99% uptime' },
+                { icon: 'flash', value: '<100ms' },
+                { icon: 'connection', value: 'WebSocket' },
+                { icon: 'wifi', value: 'Auto-retry' },
             ],
         },
     ];
@@ -585,7 +585,7 @@ export default function FeaturesScreen() {
                 </Button>
                 <View style={styles.ctaInfo}>
                     <MaterialCommunityIcons name="check-circle" size={16} color={colors.success} />
-                    <Text style={[styles.ctaInfoText, { color: colors.textSecondary }]}>Free 14-day trial • No card required</Text>
+                    <Text style={[styles.ctaInfoText, { color: colors.textSecondary }]}>Start with free tier • Upgrade anytime</Text>
                 </View>
             </View>
 

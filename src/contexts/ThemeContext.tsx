@@ -1,9 +1,9 @@
 /**
- * Theme Context - Provides Light/Dark mode switching
+ * Theme Context - Provides Light/Dark mode switching with smooth transitions
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useRef } from 'react';
+import { useColorScheme, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     LIGHT_COLORS,
@@ -29,6 +29,7 @@ interface ThemeContextType {
     setThemeMode: (mode: ThemeMode) => void;
     toggleTheme: () => void;
     paperTheme: typeof lightPaperTheme;
+    themeTransition: Animated.Value;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -43,6 +44,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const systemColorScheme = useColorScheme();
     const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
     const [isLoaded, setIsLoaded] = useState(false);
+    const themeTransition = useRef(new Animated.Value(0)).current;
 
     // Load saved theme preference
     useEffect(() => {
@@ -79,6 +81,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         return themeMode === 'dark';
     }, [themeMode, systemColorScheme]);
 
+    // Animate theme transition when isDark changes
+    useEffect(() => {
+        if (isLoaded) {
+            Animated.timing(themeTransition, {
+                toValue: isDark ? 1 : 0,
+                duration: 300,
+                easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+                useNativeDriver: false,
+            }).start();
+        }
+    }, [isDark, isLoaded]);
+
     // Toggle between light and dark
     const toggleTheme = () => {
         const newMode = isDark ? 'light' : 'dark';
@@ -95,8 +109,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
             setThemeMode,
             toggleTheme,
             paperTheme: isDark ? darkPaperTheme : lightPaperTheme,
+            themeTransition,
         };
-    }, [isDark, themeMode]);
+    }, [isDark, themeMode, themeTransition]);
 
     if (!isLoaded) {
         return null;

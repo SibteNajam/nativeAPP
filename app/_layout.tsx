@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { PaperProvider } from 'react-native-paper';
+import { Animated } from 'react-native';
 import 'react-native-reanimated';
 
 // Import contexts
@@ -15,7 +16,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Inner component that uses theme
 function AppContent() {
-    const { paperTheme, isDark } = useTheme();
+    const { paperTheme, isDark, colors, themeTransition } = useTheme();
 
     useEffect(() => {
         // Hide splash screen after theme is loaded
@@ -25,17 +26,25 @@ function AppContent() {
         hideSplash();
     }, []);
 
+    // Interpolate background color
+    const backgroundColor = themeTransition.interpolate({
+        inputRange: [0, 1],
+        outputRange: [colors.background, colors.background],
+    });
+
     return (
-        <PaperProvider theme={paperTheme}>
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(onboarding)" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            </Stack>
-            <StatusBar style={isDark ? 'light' : 'dark'} />
-        </PaperProvider>
+        <Animated.View style={{ flex: 1, backgroundColor }}>
+            <PaperProvider theme={paperTheme}>
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(onboarding)" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                </Stack>
+                <StatusBar style={isDark ? 'light' : 'dark'} animated />
+            </PaperProvider>
+        </Animated.View>
     );
 }
 

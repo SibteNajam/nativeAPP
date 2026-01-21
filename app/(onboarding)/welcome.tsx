@@ -14,6 +14,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { Easing } from 'react-native-reanimated';
 import { useFonts, Poppins_700Bold, Poppins_800ExtraBold, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 // Import theme hook
 import { useTheme } from '@/contexts/ThemeContext';
@@ -82,25 +83,25 @@ export default function WelcomeScreen() {
         Inter_600SemiBold,
     });
 
-    // Trading scenarios with dynamic colors
+    // Trading scenarios with dynamic colors - realistic profits
     const TRADING_SCENARIOS = [
         [
             { icon: 'magnify', iconColor: colors.primaryLight, text: 'Scanning BTC/USDT...' },
-            { icon: 'chart-areaspline', iconColor: colors.accent, text: 'Bullish breakout detected' },
+            { icon: 'chart-areaspline', iconColor: colors.accent, text: 'Support level detected' },
             { icon: 'arrow-up-bold-circle', iconColor: colors.primary, text: 'BUY @ $67,420' },
-            { icon: 'cash-check', iconColor: colors.success, text: 'Profit +$847', profit: '+$847' },
+            { icon: 'cash-check', iconColor: colors.success, text: 'Target +1.8%', profit: '+$243' },
         ],
         [
             { icon: 'radar', iconColor: colors.primaryLight, text: 'Analyzing ETH markets...' },
-            { icon: 'trending-up', iconColor: colors.accent, text: 'RSI oversold signal' },
+            { icon: 'trending-up', iconColor: colors.accent, text: 'RSI oversold (32)' },
             { icon: 'arrow-up-bold-circle', iconColor: colors.primary, text: 'BUY ETH @ $3,245' },
-            { icon: 'trophy', iconColor: colors.success, text: 'Sold +2.8%', profit: '+2.8%' },
+            { icon: 'trophy', iconColor: colors.success, text: 'Exit +2.4%', profit: '+$156' },
         ],
         [
-            { icon: 'atom', iconColor: colors.primaryLight, text: 'SOL opportunity found...' },
-            { icon: 'chart-bell-curve', iconColor: colors.accent, text: 'Momentum building' },
+            { icon: 'atom', iconColor: colors.primaryLight, text: 'Monitoring SOL trend...' },
+            { icon: 'chart-bell-curve', iconColor: colors.accent, text: 'EMA crossover signal' },
             { icon: 'rocket-launch', iconColor: colors.primary, text: 'Entry @ $142.50' },
-            { icon: 'star-shooting', iconColor: colors.success, text: '+$523 profit', profit: '+$523' },
+            { icon: 'star-shooting', iconColor: colors.success, text: 'Gain +3.1%', profit: '+$188' },
         ],
     ];
 
@@ -215,16 +216,16 @@ export default function WelcomeScreen() {
                         transition={{ type: 'timing', duration: 800, delay: 800 }}
                     >
                         <Text style={[styles.heroSubtitle, { color: colors.textSecondary }, fontsLoaded && { fontFamily: 'Inter_400Regular' }]}>
-                            Let AI algorithms work 24/7 while you focus on what matters. Smart trading, automated profits.
+                            Advanced algorithms analyzing markets 24/7. Automated trading with proven strategies and realistic returns.
                         </Text>
                     </MotiView>
 
-                    {/* Stats Row */}
+                    {/* Stats Row - Realistic values */}
                     <View style={styles.statsRow}>
                         {[
-                            { icon: 'chart-line', value: '$2.4M', label: 'Volume' },
-                            { icon: 'trophy', value: '94.7%', label: 'Win Rate' },
-                            { icon: 'account-group', value: '52K+', label: 'Users' },
+                            { icon: 'chart-line', value: '$1.2M', label: 'Monthly Volume' },
+                            { icon: 'account-group', value: '8.5K+', label: 'Active Users' },
+                            { icon: 'trophy', value: '71%', label: 'Avg Win Rate' },
                         ].map((stat, index) => (
                             <MotiView
                                 key={index}
@@ -251,29 +252,6 @@ export default function WelcomeScreen() {
                     transition={{ type: 'timing', duration: 800, delay: 1500 }}
                     style={styles.terminalContainer}
                 >
-                    {/* Animated Flowing Border */}
-                    <MotiView
-                        from={{ rotate: '0deg' }}
-                        animate={{ rotate: '360deg' }}
-                        transition={{ 
-                            type: 'timing', 
-                            duration: 6000, 
-                            loop: true,
-                            easing: Easing.linear,
-                        }}
-                        style={styles.borderAnimationContainer}
-                    >
-                        <View style={[
-                            styles.flowingBorder,
-                            {
-                                borderTopColor: colors.primary,
-                                borderRightColor: 'transparent',
-                                borderBottomColor: 'transparent',
-                                borderLeftColor: 'transparent',
-                            }
-                        ]} />
-                    </MotiView>
-
                     <Surface 
                         style={[
                             styles.terminalCard, 
@@ -301,7 +279,7 @@ export default function WelcomeScreen() {
                                     style={[styles.livePulse, { backgroundColor: colors.primary }]}
                                 />
                                 <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-                                <Text style={[styles.liveText, { color: colors.primary }]}>● LIVE</Text>
+                                <Text style={[styles.liveText, { color: colors.primary }]}> LIVE</Text>
                             </View>
                         </View>
 
@@ -557,6 +535,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         lineHeight: 26,
         marginBottom: 28,
+        paddingHorizontal: 4,
     },
     statsRow: {
         flexDirection: 'row',
@@ -589,24 +568,9 @@ const styles = StyleSheet.create({
         position: 'relative',
         marginBottom: 24,
     },
-    borderAnimationContainer: {
-        position: 'absolute',
-        top: -3,
-        left: -3,
-        right: -3,
-        bottom: -3,
-        zIndex: 0,
-    },
-    flowingBorder: {
-        flex: 1,
-        borderRadius: 23,
-        borderWidth: 3,
-        borderStyle: 'solid',
-    },
     terminalCard: {
         borderRadius: 20,
         overflow: 'hidden',
-        zIndex: 1,
     },
     titleBar: {
         flexDirection: 'row',
@@ -685,6 +649,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 13,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        flexWrap: 'wrap',
     },
     profitBadge: {
         paddingHorizontal: 10,

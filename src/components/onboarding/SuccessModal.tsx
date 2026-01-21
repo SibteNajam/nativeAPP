@@ -42,8 +42,8 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                     >
                         {/* Success Animation */}
                         <MotiView
-                            from={{ scale: 0, rotate: '0deg' }}
-                            animate={{ scale: 1, rotate: '0deg' }}
+                            from={{ scale: 0 }}
+                            animate={{ scale: 1 }}
                             transition={{
                                 type: 'spring',
                                 damping: 18,
@@ -125,10 +125,10 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                             }}
                         >
                             <Text style={[styles.title, { color: colors.text }]}>
-                                All Set!
+                                Welcome to ByteBoom!
                             </Text>
                             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                                Your trading bot is ready to make you money
+                                Create your account to start automated trading
                             </Text>
                         </MotiView>
 
@@ -196,7 +196,7 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                                     size={24}
                                     color="#fff"
                                 />
-                                <Text style={styles.buttonText}>Let's Make Money</Text>
+                                <Text style={styles.buttonText}>Sign Up Now</Text>
                                 <MaterialCommunityIcons
                                     name="arrow-right"
                                     size={24}
