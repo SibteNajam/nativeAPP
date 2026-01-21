@@ -32,6 +32,9 @@ import { useExchange } from '@/contexts/ExchangeContext';
 import { useCredentials } from '@/hooks/useCredentials';
 import { getExchangeInfo } from '@/types/exchange.types';
 import BotSelectionModal from './BotSelectionModal';
+import { getBotTrades } from '@/services/api/trades.api';
+import type { TradesResponse } from '@/types/trades.types';
+import { useRouter } from 'expo-router';
 
 type BotStatus = 'idle' | 'activating' | 'active' | 'deactivating';
 
@@ -42,13 +45,16 @@ interface TradingBotCardProps {
 const SELECTED_BOT_KEY = '@selected_trading_bot';
 
 export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
     const { selectedExchange, selectedCredential, refreshExchanges } = useExchange();
     const { toggleCredential } = useCredentials();
+    const router = useRouter();
 
     const [botStatus, setBotStatus] = useState<BotStatus>('idle');
     const [showBotModal, setShowBotModal] = useState(false);
     const [selectedBot, setSelectedBot] = useState<{ id: string; name: string } | null>(null);
+    const [todayPnL, setTodayPnL] = useState<number>(0);
+    const [todayTrades, setTodayTrades] = useState<number>(0);
 
     // Load selected bot from storage
     useEffect(() => {
@@ -87,6 +93,46 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
             setBotStatus('idle');
         }
     }, [selectedCredential?.activeTrading, selectedExchange]);
+
+    // Fetch trades data and calculate today's stats
+    useEffect(() => {
+        if (!selectedExchange || botStatus !== 'active') {
+            setTodayPnL(0);
+            setTodayTrades(0);
+            return;
+        }
+
+        const fetchTodayStats = async () => {
+            try {
+                const response = await getBotTrades(selectedExchange);
+                if (response.status === 'Success') {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    // Filter trades completed today
+                    const todayCompletedTrades = response.data.trades.filter(trade => {
+                        if (!trade.pnl.isComplete || !trade.entryOrder.filledAt) return false;
+                        const tradeDate = new Date(trade.entryOrder.filledAt);
+                        tradeDate.setHours(0, 0, 0, 0);
+                        return tradeDate.getTime() === today.getTime();
+                    });
+
+                    // Calculate total PnL from today's completed trades
+                    const pnl = todayCompletedTrades.reduce((sum, trade) => sum + trade.pnl.realized, 0);
+                    
+                    setTodayPnL(pnl);
+                    setTodayTrades(todayCompletedTrades.length);
+                }
+            } catch (error) {
+                console.error('Failed to fetch today\'s stats:', error);
+            }
+        };
+
+        fetchTodayStats();
+        // Refresh every 30 seconds when active
+        const interval = setInterval(fetchTodayStats, 30000);
+        return () => clearInterval(interval);
+    }, [selectedExchange, botStatus]);
 
     // Idle state animations
     const ringScale = useSharedValue(1);
@@ -495,17 +541,38 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
 
                 {/* Stats */}
                 <View style={styles.activeActions}>
-                    <View style={[styles.statItem, { backgroundColor: `${colors.primary}15` }]}>
+                    <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
                         <MaterialCommunityIcons name="chart-areaspline" size={20} color={colors.primary} />
-                        <Text style={[styles.statText, { color: colors.text }]}>$0.00</Text>
+                        <Text style={[styles.statText, { color: todayPnL >= 0 ? colors.success : colors.error }]}>
+                            ${todayPnL.toFixed(2)}
+                        </Text>
                         <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Today's P/L</Text>
                     </View>
-                    <View style={[styles.statItem, { backgroundColor: `${colors.primary}10` }]}>
+                    <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
                         <MaterialCommunityIcons name="repeat" size={20} color={colors.primaryLight} />
-                        <Text style={[styles.statText, { color: colors.text }]}>0</Text>
+                        <Text style={[styles.statText, { color: colors.text }]}>{todayTrades}</Text>
                         <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trades</Text>
                     </View>
                 </View>
+
+                {/* View Details Button - Outline Style */}
+                <Pressable
+                    onPress={() => router.push('/trades-history')}
+                    style={({ pressed }) => [
+                        styles.viewDetailsButton,
+                        {
+                            backgroundColor: isDark ? 'rgba(138, 79, 255, 0.08)' : `${colors.primary}15`,
+                            borderColor: colors.primary,
+                            opacity: pressed ? 0.7 : 1,
+                        }
+                    ]}
+                >
+                    <MaterialCommunityIcons name="chart-box-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.viewDetailsText, { color: colors.primary }]}>
+                        View Full Analytics & Trades
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-right" size={18} color={colors.primary} />
+                </Pressable>
 
                 {/* Stop button hint */}
                 <View style={styles.footerHint}>
@@ -884,6 +951,24 @@ const styles = StyleSheet.create({
     },
     footerHintText: {
         fontSize: 12,
+    },
+    // View Details Button
+    viewDetailsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+    },
+    viewDetailsText: {
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+        textAlign: 'center',
     },
     // Bot Indicator
     botIndicator: {

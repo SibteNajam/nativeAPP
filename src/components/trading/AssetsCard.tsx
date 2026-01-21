@@ -214,7 +214,7 @@ export default function AssetsCard() {
                                 ]}
                             >
                                 <View style={styles.assetLeft}>
-                                    <View style={[styles.coinIcon, { backgroundColor: `${colors.primary}15` }]}>
+                                    <View style={[styles.coinIcon, { backgroundColor: colors.surfaceLight }]}>
                                         <Text style={[styles.coinSymbol, { color: colors.primary }]}>
                                             {asset.coin.slice(0, 1)}
                                         </Text>

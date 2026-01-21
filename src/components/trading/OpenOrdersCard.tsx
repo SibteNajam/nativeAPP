@@ -242,7 +242,7 @@ export default function OpenOrdersCard() {
                     <View style={styles.headerLeft}>
                         <MaterialCommunityIcons name="order-bool-ascending-variant" size={24} color={colors.primary} />
                         <Text style={[styles.title, { color: colors.text }]}>Open Orders</Text>
-                        <View style={[styles.badge, { backgroundColor: `${colors.primary}20` }]}>
+                        <View style={[styles.badge, { backgroundColor: colors.surfaceLight }]}>
                             <Text style={[styles.badgeText, { color: colors.primary }]}>{orders.length}</Text>
                         </View>
                     </View>

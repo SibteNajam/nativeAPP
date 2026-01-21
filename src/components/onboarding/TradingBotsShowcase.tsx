@@ -34,7 +34,7 @@ export default function TradingBotsShowcase() {
             riskLevel: 'Low',
             avgReturn: '8-12%',
             winRate: '89%',
-            color: '#10b981',
+            color: colors.success,
             badge: 'Best for Beginners',
         },
         {
@@ -45,7 +45,7 @@ export default function TradingBotsShowcase() {
             riskLevel: 'High',
             avgReturn: '20-35%',
             winRate: '76%',
-            color: '#f59e0b',
+            color: colors.warning,
             badge: 'High Frequency',
         },
         {
@@ -67,7 +67,7 @@ export default function TradingBotsShowcase() {
             riskLevel: 'Low',
             avgReturn: '5-8%',
             winRate: '95%',
-            color: '#3b82f6',
+            color: colors.info,
             badge: 'Low Risk',
         },
     ];
@@ -75,11 +75,11 @@ export default function TradingBotsShowcase() {
     const getRiskColor = (level: string) => {
         switch (level) {
             case 'Low':
-                return '#10b981';
+                return colors.success;
             case 'Medium':
-                return '#f59e0b';
+                return colors.warning;
             case 'High':
-                return '#ef4444';
+                return colors.error;
             default:
                 return colors.text;
         }
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     badgeText: {
-        color: '#fff',
+        color: '#FFFFFF',
         fontSize: 11,
         fontWeight: '700',
     },

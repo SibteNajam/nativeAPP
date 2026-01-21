@@ -36,12 +36,12 @@ const API_ENDPOINTS = {
     // Auth
     AUTH: {
         LOGIN: '/auth/login',
-        REGISTER: '/auth/register',
+        REGISTER: '/user/register-user',
         LOGOUT: '/auth/logout',
         REFRESH: '/auth/refresh',
         ME: '/auth/me',
-        VERIFY_OTP: '/auth/verify-otp',
-        SEND_OTP: '/auth/send-otp',
+        VERIFY_OTP: '/user/verify-otp',
+        RESEND_OTP: '/user/resend-otp',
         GOOGLE: '/auth/google',
         RESET_PASSWORD: '/auth/reset-password',
         CONFIRM_RESET: '/auth/confirm-reset',

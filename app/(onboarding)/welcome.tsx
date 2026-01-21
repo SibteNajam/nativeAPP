@@ -407,9 +407,9 @@ export default function WelcomeScreen() {
 
                     {/* New User Growth Section */}
                     <MotiView
-                        from={{ opacity: 0, scale: 0.9 }}
+                        from={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: 'spring', delay: 2000 }}
+                        transition={{ type: 'timing', duration: 400, delay: 2000 }}
                         style={[styles.usersChip, { backgroundColor: `${colors.primary}15` }]}
                     >
                         <View style={styles.userAvatars}>

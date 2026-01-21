@@ -40,7 +40,7 @@ type TradeFilter = 'all' | 'active' | 'completed';
 // ============================================================================
 
 export default function TradesHistoryScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   
   const [activeTab, setActiveTab] = useState<TabType>('analytics');
@@ -219,6 +219,13 @@ export default function TradesHistoryScreen() {
               <Text style={[styles.lastUpdated, { color: colors.textSecondary }]}>
                 {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </Text>
+              <Pressable onPress={toggleTheme} style={[styles.themeToggleBtn, { backgroundColor: colors.surface }]}>
+                <Ionicons 
+                  name={isDark ? 'sunny' : 'moon'} 
+                  size={18} 
+                  color={colors.primary} 
+                />
+              </Pressable>
               <Pressable onPress={onRefresh} style={[styles.refreshBtn, { backgroundColor: colors.surface }]}>
                 <Ionicons name="refresh" size={18} color={colors.primary} />
               </Pressable>
@@ -1229,6 +1236,13 @@ const styles = StyleSheet.create({
   },
   lastUpdated: {
     fontSize: 12,
+  },
+  themeToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   refreshBtn: {
     width: 36,

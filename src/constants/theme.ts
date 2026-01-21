@@ -111,6 +111,8 @@ export const LIGHT_COLORS = {
   error: '#EF4444',
   errorLight: '#FEE2E2',
   errorMuted: '#DC2626',
+  info: '#3B82F6',
+  infoLight: '#DBEAFE',
 
   // Trading Colors
   buy: '#10B981',
@@ -121,6 +123,8 @@ export const LIGHT_COLORS = {
   divider: '#E5E7EB',
   disabled: '#D1D5DB',
   overlay: 'rgba(0, 0, 0, 0.5)',
+  white: '#FFFFFF',
+  black: '#000000',
 
   // Traffic Light Colors
   trafficRed: '#FF5F57',
@@ -150,22 +154,22 @@ export const DARK_COLORS = {
   neonGreen: '#00FF88',
   neonBlue: '#00D4FF',
 
-  // Background Colors (Dark)
-  background: '#0D1117',
-  surface: '#161B22',
-  surfaceLight: '#1C2128',
-  surfaceHighlight: '#21262D',
+  // Background Colors (Dark) - Professional Neutral Grays
+  background: '#121212',
+  surface: '#1E1E2D',
+  surfaceLight: '#2C2C3E',
+  surfaceHighlight: '#3A3A4E',
 
   // Terminal/Card Colors
-  terminalBg: '#0D1117',
-  terminalHeader: '#161B22',
-  terminalBorder: '#30363D',
-  cardBg: '#161B22',
+  terminalBg: '#121212',
+  terminalHeader: '#1E1E2D',
+  terminalBorder: '#2C2C3E',
+  cardBg: '#1E1E2D',
 
   // Text Colors
-  text: '#F0F6FC',
-  textSecondary: '#8B949E',
-  textLight: '#6E7681',
+  text: '#FFFFFF',
+  textSecondary: '#A0A0B0',
+  textLight: '#707080',
   textOnPrimary: '#FFFFFF',
 
   // Status Colors
@@ -177,16 +181,20 @@ export const DARK_COLORS = {
   error: '#FF4757',
   errorLight: '#FF475720',
   errorMuted: '#DA3633',
+  info: '#38BDF8',
+  infoLight: '#38BDF820',
 
   // Trading Colors
   buy: '#00FF88',
   sell: '#FF4757',
 
   // Utility Colors
-  border: '#30363D',
-  divider: '#21262D',
+  border: 'rgba(255, 255, 255, 0.08)',
+  divider: 'rgba(255, 255, 255, 0.06)',
   disabled: '#484F58',
   overlay: 'rgba(0, 0, 0, 0.7)',
+  white: '#FFFFFF',
+  black: '#000000',
 
   // Traffic Light Colors
   trafficRed: '#FF5F57',

@@ -52,7 +52,7 @@ const AVAILABLE_BOTS: BotInfo[] = [
             'Stop-loss protection',
             'Best for beginners',
         ],
-        color: '#10b981', // Green
+        color: 'success', // Will be resolved from theme
     },
     {
         id: 'aggressive-scalper',
@@ -69,7 +69,7 @@ const AVAILABLE_BOTS: BotInfo[] = [
             'Risk management AI',
             'For experienced traders',
         ],
-        color: '#f59e0b', // Orange
+        color: 'warning', // Will be resolved from theme
     },
 ];
 
@@ -100,10 +100,20 @@ export default function BotSelectionModal({
 
     const getRiskColor = (level: string) => {
         switch (level) {
-            case 'Low': return '#10b981';
-            case 'Medium': return '#f59e0b';
-            case 'High': return '#ef4444';
+            case 'Low': return colors.success;
+            case 'Medium': return colors.warning;
+            case 'High': return colors.error;
             default: return colors.text;
+        }
+    };
+
+    // Resolve color string to actual color
+    const getActualColor = (colorKey: string) => {
+        switch (colorKey) {
+            case 'success': return colors.success;
+            case 'warning': return colors.warning;
+            case 'error': return colors.error;
+            default: return colors.primary;
         }
     };
 
@@ -157,6 +167,7 @@ export default function BotSelectionModal({
                         {AVAILABLE_BOTS.map((bot) => {
                             const isExpanded = expandedBot === bot.id;
                             const isSelected = currentlySelected === bot.id;
+                            const botColor = getActualColor(bot.color);
 
                             return (
                                 <Animated.View
@@ -166,7 +177,7 @@ export default function BotSelectionModal({
                                         styles.botCard,
                                         {
                                             backgroundColor: colors.background,
-                                            borderColor: isSelected ? bot.color : colors.border,
+                                            borderColor: isSelected ? botColor : colors.border,
                                             borderWidth: isSelected ? 2 : 1,
                                         },
                                     ]}
@@ -177,13 +188,13 @@ export default function BotSelectionModal({
                                             <View
                                                 style={[
                                                     styles.botIcon,
-                                                    { backgroundColor: `${bot.color}20` },
+                                                    { backgroundColor: `${botColor}20` },
                                                 ]}
                                             >
                                                 <MaterialCommunityIcons
                                                     name={bot.icon as any}
                                                     size={28}
-                                                    color={bot.color}
+                                                    color={botColor}
                                                 />
                                             </View>
                                             <View style={styles.botInfo}>
@@ -195,13 +206,13 @@ export default function BotSelectionModal({
                                                         <View
                                                             style={[
                                                                 styles.selectedBadge,
-                                                                { backgroundColor: bot.color },
+                                                                { backgroundColor: botColor },
                                                             ]}
                                                         >
                                                             <MaterialCommunityIcons
                                                                 name="check-circle"
                                                                 size={12}
-                                                                color="#fff"
+                                                                color={colors.white}
                                                             />
                                                             <Text style={styles.selectedText}>Active</Text>
                                                         </View>
@@ -260,7 +271,7 @@ export default function BotSelectionModal({
                                             <Text style={[styles.statLabel, { color: colors.textLight }]}>
                                                 Avg Return
                                             </Text>
-                                            <Text style={[styles.statValue, { color: bot.color }]}>
+                                            <Text style={[styles.statValue, { color: botColor }]}>
                                                 {bot.avgReturn}
                                             </Text>
                                         </View>
@@ -297,7 +308,7 @@ export default function BotSelectionModal({
                                                         <MaterialCommunityIcons
                                                             name="check-circle"
                                                             size={14}
-                                                            color={bot.color}
+                                                            color={botColor}
                                                         />
                                                         <Text
                                                             style={[
@@ -320,20 +331,20 @@ export default function BotSelectionModal({
                                             styles.selectButton,
                                             {
                                                 backgroundColor: isSelected
-                                                    ? `${bot.color}20`
-                                                    : bot.color,
+                                                    ? `${botColor}20`
+                                                    : botColor,
                                             },
                                         ]}
                                     >
                                         <MaterialCommunityIcons
                                             name={isSelected ? 'check-circle' : 'robot'}
                                             size={20}
-                                            color={isSelected ? bot.color : '#fff'}
+                                            color={isSelected ? botColor : colors.white}
                                         />
                                         <Text
                                             style={[
                                                 styles.selectButtonText,
-                                                { color: isSelected ? bot.color : '#fff' },
+                                                { color: isSelected ? botColor : colors.white },
                                             ]}
                                         >
                                             {isSelected ? 'Currently Active' : 'Select This Bot'}

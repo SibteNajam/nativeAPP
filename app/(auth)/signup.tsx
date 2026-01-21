@@ -87,14 +87,17 @@ export default function SignupScreen() {
         if (response.success) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // Show success message
+            // Show success message and redirect to OTP verification
             Alert.alert(
-                'Registration Successful! 🎉',
-                'Your account has been created. Please login to continue.',
+                'Check Your Email! 📧',
+                "We've sent a verification code to your email. Please verify to continue.",
                 [
                     {
-                        text: 'Go to Login',
-                        onPress: () => router.replace('/login'),
+                        text: 'Verify Now',
+                        onPress: () => router.push({
+                            pathname: '/(auth)/otp-verification',
+                            params: { email: email.trim().toLowerCase() }
+                        }),
                     },
                 ]
             );

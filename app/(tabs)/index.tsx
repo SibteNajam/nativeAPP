@@ -78,7 +78,7 @@ export default function DashboardScreen() {
           onPress={() => setDrawerVisible(true)}
           style={({ pressed }) => [
             styles.menuButton,
-            { backgroundColor: `${colors.primary}10` },
+            { backgroundColor: colors.surfaceLight },
             pressed && { opacity: 0.7 },
           ]}
         >
@@ -161,7 +161,7 @@ export default function DashboardScreen() {
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 400, delay: 100 }}
           >
-            <Surface style={[styles.warningCard, { backgroundColor: `${colors.warning}15` }]} elevation={0}>
+            <Surface style={[styles.warningCard, { backgroundColor: colors.surface, borderColor: colors.warning, borderWidth: 1 }]} elevation={0}>
               <MaterialCommunityIcons name="alert-circle" size={24} color={colors.warning} />
               <View style={styles.warningContent}>
                 <Text style={[styles.warningTitle, { color: colors.text }]}>

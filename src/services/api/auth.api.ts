@@ -131,8 +131,7 @@ export const authApi = {
     async register(data: RegisterRequest): Promise<AuthResponse> {
         try {
             const response = await api.post(AUTH.REGISTER, {
-                firstName: data.firstName.trim(),
-                lastName: data.lastName?.trim() || '',
+                displayName: data.firstName.trim(),
                 email: data.email.trim().toLowerCase(),
                 password: data.password,
                 confirmPassword: data.confirmPassword,
@@ -306,17 +305,9 @@ export const authApi = {
                 otp: data.otp,
             });
 
-            const { user, accessToken, refreshToken, expiresIn } = response.data;
-
-            if (accessToken) {
-                await authStorage.setTokens(accessToken, refreshToken);
-            }
-
             return {
                 success: true,
-                message: 'OTP verified successfully',
-                user,
-                tokens: accessToken ? { accessToken, refreshToken, expiresIn } : undefined,
+                message: response.data.message || 'OTP verified successfully',
             };
         } catch (error: any) {
             return {
@@ -327,11 +318,11 @@ export const authApi = {
     },
 
     /**
-     * Send OTP to email
+     * Resend OTP code to email
      */
-    async sendOTP(email: string): Promise<AuthResponse> {
+    async resendOTP(email: string): Promise<AuthResponse> {
         try {
-            const response = await api.post(AUTH.SEND_OTP, {
+            const response = await api.post(AUTH.RESEND_OTP, {
                 email: email.trim().toLowerCase(),
             });
 
