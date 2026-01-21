@@ -180,7 +180,7 @@ export default function AssetsCard() {
                     </Pressable>
                 </View>
 
-                <View style={styles.summaryRow}>
+                <View style={[styles.summaryRow, { borderBottomColor: colors.divider }]}>
                     <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
                         Total Value
                     </Text>
@@ -294,7 +294,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(128, 128, 128, 0.2)',
     },
     summaryLabel: {
         fontSize: 14,

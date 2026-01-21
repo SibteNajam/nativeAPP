@@ -12,7 +12,7 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
-import { Surface } from 'react-native-paper';
+import { Surface, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { router } from 'expo-router';
@@ -30,7 +30,7 @@ interface FeatureItem {
 }
 
 export default function ExploreScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { logout } = useAuth();
 
   // Scroll tracking for parallax effect
@@ -83,10 +83,18 @@ export default function ExploreScreen() {
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Explore</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          Discover features
-        </Text>
+        <View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Explore</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Discover features
+          </Text>
+        </View>
+        <IconButton
+          icon={isDark ? 'weather-sunny' : 'moon-waning-crescent'}
+          size={22}
+          iconColor={colors.primary}
+          onPress={toggleTheme}
+        />
       </View>
 
       <Animated.ScrollView
@@ -174,6 +182,9 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 28,

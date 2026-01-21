@@ -376,6 +376,11 @@ export const ANIMATION = {
 // For backwards compatibility, export COLORS as alias to LIGHT_COLORS
 // This will be overridden by ThemeContext in actual usage
 export const COLORS = LIGHT_COLORS;
+export const Colors = LIGHT_COLORS; // Legacy alias
+export const Spacing = SPACING;       // Legacy alias
+export const Typography = TYPOGRAPHY; // Legacy alias
+export const BorderRadius = RADIUS;   // Legacy alias
+export const Shadows = SHADOWS;       // Legacy alias
 export const paperTheme = lightPaperTheme;
 
 export default {

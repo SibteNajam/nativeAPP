@@ -257,7 +257,7 @@ export default function LoginScreen() {
                     <Button
                         mode="outlined"
                         onPress={() => { }}
-                        style={styles.socialButton}
+                        style={[styles.socialButton, { borderColor: colors.border }]}
                         contentStyle={styles.socialButtonContent}
                         labelStyle={[styles.socialButtonLabel, { color: colors.text }]}
                         icon={({ color }) => (
@@ -377,7 +377,6 @@ const styles = StyleSheet.create({
     },
     socialButton: {
         borderRadius: 28,
-        borderColor: '#DDD',
     },
     socialButtonContent: {
         height: 52,

@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { Button, Surface, Chip, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView, AnimatePresence } from 'moti';
+import { Easing } from 'react-native-reanimated';
 import { useFonts, Poppins_700Bold, Poppins_800ExtraBold, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 
@@ -160,7 +161,7 @@ export default function WelcomeScreen() {
                             <MaterialCommunityIcons name="robot" size={22} color={colors.primary} />
                         </Surface>
                         <Text style={[styles.appName, { color: colors.text }, fontsLoaded && { fontFamily: 'Poppins_700Bold' }]}>
-                            TradeBot
+                            ByteBoom-AI
                         </Text>
                     </View>
                     <View style={styles.headerRight}>
@@ -248,15 +249,50 @@ export default function WelcomeScreen() {
                     from={{ opacity: 0, translateY: 40 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 800, delay: 1500 }}
+                    style={styles.terminalContainer}
                 >
-                    <Surface style={[styles.terminalCard, { backgroundColor: colors.terminalBg }]} elevation={4}>
-                        <View style={[styles.titleBar, { backgroundColor: colors.terminalHeader }]}>
+                    {/* Animated Flowing Border */}
+                    <MotiView
+                        from={{ rotate: '0deg' }}
+                        animate={{ rotate: '360deg' }}
+                        transition={{ 
+                            type: 'timing', 
+                            duration: 6000, 
+                            loop: true,
+                            easing: Easing.linear,
+                        }}
+                        style={styles.borderAnimationContainer}
+                    >
+                        <View style={[
+                            styles.flowingBorder,
+                            {
+                                borderTopColor: colors.primary,
+                                borderRightColor: 'transparent',
+                                borderBottomColor: 'transparent',
+                                borderLeftColor: 'transparent',
+                            }
+                        ]} />
+                    </MotiView>
+
+                    <Surface 
+                        style={[
+                            styles.terminalCard, 
+                            { 
+                                backgroundColor: isDark ? colors.terminalBg : '#F8F9FA',
+                            }
+                        ]} 
+                        elevation={isDark ? 4 : 2}
+                    >
+                        <View style={[
+                            styles.titleBar, 
+                            { backgroundColor: isDark ? colors.terminalHeader : '#E9ECEF' }
+                        ]}>
                             <View style={styles.trafficLights}>
                                 <View style={[styles.trafficLight, { backgroundColor: colors.trafficRed }]} />
                                 <View style={[styles.trafficLight, { backgroundColor: colors.trafficYellow }]} />
                                 <View style={[styles.trafficLight, { backgroundColor: colors.trafficGreen }]} />
                             </View>
-                            <Text style={[styles.titleBarText, { color: '#9CA3AF' }]}>TradeBot Terminal</Text>
+                            <Text style={[styles.titleBarText, { color: isDark ? colors.textLight : '#495057' }]}>TradeBot Terminal</Text>
                             <View style={styles.liveIndicator}>
                                 <MotiView
                                     from={{ scale: 1, opacity: 0.8 }}
@@ -270,9 +306,15 @@ export default function WelcomeScreen() {
                         </View>
 
                         <View style={styles.terminalContent}>
-                            <View style={[styles.terminalHeader, { borderBottomColor: colors.terminalBorder }]}>
+                            <View style={[
+                                styles.terminalHeader, 
+                                { borderBottomColor: isDark ? colors.terminalBorder : '#DEE2E6' }
+                            ]}>
                                 <MaterialCommunityIcons name="connection" size={14} color={colors.primaryLight} />
-                                <Text style={[styles.terminalHeaderText, { color: '#9CA3AF' }]}>Connected to Binance API</Text>
+                                <Text style={[
+                                    styles.terminalHeaderText, 
+                                    { color: isDark ? colors.textLight : '#6C757D' }
+                                ]}>Connected to Binance API</Text>
                             </View>
 
                             <View style={styles.terminalLines}>
@@ -286,13 +328,19 @@ export default function WelcomeScreen() {
                                             transition={{ type: 'timing', duration: 500 }}
                                             style={styles.terminalLine}
                                         >
-                                            <View style={[styles.lineIcon, { backgroundColor: `${signal.iconColor}20` }]}>
+                                            <View style={[
+                                                styles.lineIcon, 
+                                                { backgroundColor: `${signal.iconColor}${isDark ? '20' : '15'}` }
+                                            ]}>
                                                 <MaterialCommunityIcons name={signal.icon as any} size={16} color={signal.iconColor} />
                                             </View>
-                                            <Text style={[styles.lineText, { color: '#E2E8F0' }]}>{signal.text}</Text>
+                                            <Text style={[
+                                                styles.lineText, 
+                                                { color: isDark ? colors.text : '#343A40' }
+                                            ]}>{signal.text}</Text>
                                             {signal.profit && (
                                                 <View style={[styles.profitBadge, { backgroundColor: colors.success }]}>
-                                                    <Text style={styles.profitText}>{signal.profit}</Text>
+                                                    <Text style={[styles.profitText, { color: colors.textOnPrimary }]}>{signal.profit}</Text>
                                                 </View>
                                             )}
                                         </MotiView>
@@ -351,11 +399,30 @@ export default function WelcomeScreen() {
                         labelStyle={[styles.ctaButtonLabel, fontsLoaded && { fontFamily: 'Poppins_600SemiBold' }]}
                         buttonColor={colors.primary}
                     >
-                        Start Making Money →
+                        Get Started →
                     </Button>
                     <Text style={[styles.ctaSubtext, { color: colors.textLight }, fontsLoaded && { fontFamily: 'Inter_400Regular' }]}>
                         No credit card required • Cancel anytime
                     </Text>
+
+                    {/* New User Growth Section */}
+                    <MotiView
+                        from={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ type: 'spring', delay: 2000 }}
+                        style={[styles.usersChip, { backgroundColor: `${colors.primary}15` }]}
+                    >
+                        <View style={styles.userAvatars}>
+                            {[1, 2, 3, 4].map((i) => (
+                                <View key={i} style={[styles.avatarCircle, { backgroundColor: colors.surface, marginLeft: i === 1 ? 0 : -8 }]}>
+                                    <MaterialCommunityIcons name="account" size={12} color={colors.textLight} />
+                                </View>
+                            ))}
+                        </View>
+                        <Text style={[styles.usersText, { color: colors.textSecondary }]}>
+                            Join <Text style={{ color: colors.primary, fontWeight: '700' }}>50k+</Text> active traders
+                        </Text>
+                    </MotiView>
                 </MotiView>
 
                 {/* Trust Section */}
@@ -378,6 +445,23 @@ export default function WelcomeScreen() {
                     <View style={styles.trustBadge}>
                         <MaterialCommunityIcons name="headset" size={16} color={colors.primary} />
                         <Text style={[styles.trustText, { color: colors.textSecondary }, fontsLoaded && { fontFamily: 'Inter_500Medium' }]}>24/7 Support</Text>
+                    </View>
+                </MotiView>
+
+                {/* Exchanges Row */}
+                <MotiView
+                    from={{ opacity: 0, translateY: 20 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 800, delay: 2400 }}
+                    style={styles.exchangesContainer}
+                >
+                    <Text style={[styles.exchangesTitle, { color: colors.textLight }]}>SUPPORTED EXCHANGES</Text>
+                    <View style={styles.exchangesRow}>
+                        <MaterialCommunityIcons name="alpha-b-circle" size={28} color="#F0B90B" />
+                        <MaterialCommunityIcons name="alpha-b-box" size={28} color="#00D4AA" />
+                        <MaterialCommunityIcons name="alpha-g-circle" size={28} color="#17E6A1" />
+                        <MaterialCommunityIcons name="alpha-m-circle" size={28} color="#1972F5" />
+                        <Text style={[styles.moreExchanges, { color: colors.textLight }]}>+12 more</Text>
                     </View>
                 </MotiView>
 
@@ -501,10 +585,28 @@ const styles = StyleSheet.create({
         fontSize: 11,
         marginTop: 3,
     },
+    terminalContainer: {
+        position: 'relative',
+        marginBottom: 24,
+    },
+    borderAnimationContainer: {
+        position: 'absolute',
+        top: -3,
+        left: -3,
+        right: -3,
+        bottom: -3,
+        zIndex: 0,
+    },
+    flowingBorder: {
+        flex: 1,
+        borderRadius: 23,
+        borderWidth: 3,
+        borderStyle: 'solid',
+    },
     terminalCard: {
         borderRadius: 20,
         overflow: 'hidden',
-        marginBottom: 24,
+        zIndex: 1,
     },
     titleBar: {
         flexDirection: 'row',
@@ -590,7 +692,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     profitText: {
-        color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -662,5 +763,51 @@ const styles = StyleSheet.create({
         width: 1,
         height: 16,
         marginHorizontal: 4,
+    },
+    // New Styles
+    usersChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        marginTop: 24,
+    },
+    userAvatars: {
+        flexDirection: 'row',
+        marginRight: 10,
+    },
+    avatarCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    usersText: {
+        fontSize: 13,
+    },
+    exchangesContainer: {
+        alignItems: 'center',
+        marginTop: 40,
+        paddingHorizontal: 20,
+    },
+    exchangesTitle: {
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 2,
+        marginBottom: 16,
+    },
+    exchangesRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+        opacity: 0.6,
+    },
+    moreExchanges: {
+        fontSize: 12,
+        fontWeight: '500',
     },
 });

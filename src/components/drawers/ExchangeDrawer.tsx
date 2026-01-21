@@ -95,7 +95,7 @@ export default function ExchangeDrawer({
                 <Animated.View
                     entering={FadeIn.duration(200)}
                     exiting={FadeOut.duration(150)}
-                    style={styles.backdrop}
+                    style={[styles.backdrop, { backgroundColor: colors.overlay }]}
                 >
                     <Pressable style={styles.backdropPressable} onPress={onClose} />
                 </Animated.View>
@@ -114,13 +114,13 @@ export default function ExchangeDrawer({
                 >
                     {/* Header */}
                     <View style={[styles.header, { backgroundColor: colors.primary }]}>
-                        <View style={styles.userAvatar}>
-                            <Text style={styles.userInitial}>
+                        <View style={[styles.userAvatar, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                            <Text style={[styles.userInitial, { color: colors.textOnPrimary }]}>
                                 {user?.firstName?.charAt(0).toUpperCase() || 'U'}
                             </Text>
                         </View>
-                        <Text style={styles.userName}>{user?.firstName || 'User'}</Text>
-                        <Text style={styles.userEmail} numberOfLines={1}>{user?.email}</Text>
+                        <Text style={[styles.userName, { color: colors.textOnPrimary }]}>{user?.firstName || 'User'}</Text>
+                        <Text style={[styles.userEmail, { color: 'rgba(255, 255, 255, 0.7)' }]} numberOfLines={1}>{user?.email}</Text>
                     </View>
 
                     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -174,7 +174,7 @@ export default function ExchangeDrawer({
                                                             </Text>
                                                             {isSelected && (
                                                                 <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
-                                                                    <Text style={styles.selectedBadgeText}>✓</Text>
+                                                                    <Text style={[styles.selectedBadgeText, { color: colors.textOnPrimary }]}>✓</Text>
                                                                 </View>
                                                             )}
                                                         </View>
@@ -230,7 +230,7 @@ export default function ExchangeDrawer({
                                                                 onPress={() => handleSelect(credential.exchange)}
                                                                 style={[styles.selectButton, { backgroundColor: colors.primary }]}
                                                             >
-                                                                <Text style={styles.selectButtonText}>Select</Text>
+                                                                <Text style={[styles.selectButtonText, { color: colors.textOnPrimary }]}>Select</Text>
                                                             </Pressable>
                                                         )}
 
@@ -303,7 +303,6 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
     },
     backdropPressable: {
         flex: 1,
@@ -328,7 +327,6 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 8,
@@ -336,16 +334,13 @@ const styles = StyleSheet.create({
     userInitial: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#FFF',
     },
     userName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#FFF',
     },
     userEmail: {
         fontSize: 11,
-        color: 'rgba(255,255,255,0.7)',
         marginTop: 2,
     },
     content: {
@@ -411,7 +406,6 @@ const styles = StyleSheet.create({
     selectedBadgeText: {
         fontSize: 9,
         fontWeight: '700',
-        color: '#FFF',
     },
     exchangeLabel: {
         fontSize: 10,
@@ -456,7 +450,6 @@ const styles = StyleSheet.create({
     selectButtonText: {
         fontSize: 11,
         fontWeight: '600',
-        color: '#FFF',
     },
     selectedIndicator: {
         flex: 1,

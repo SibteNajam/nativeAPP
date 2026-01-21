@@ -184,30 +184,55 @@ export const authApi = {
 
     /**
      * Refresh the access token
+     * 
+     * Backend Response Format:
+     * {
+     *   status: "Success",
+     *   statusCode: 200,
+     *   message: "Token refreshed successfully",
+     *   data: {
+     *     data: {
+     *       user: { ... },
+     *       payload: { token, refresh_token }
+     *     }
+     *   }
+     * }
      */
     async refreshToken(): Promise<AuthTokens | null> {
         try {
             const refreshToken = await authStorage.getRefreshToken();
 
             if (!refreshToken) {
+                console.log('No refresh token found');
                 return null;
             }
 
             const response = await api.post(AUTH.REFRESH, {
-                refreshToken,
+                refresh_token: refreshToken, // Backend expects 'refresh_token'
             });
 
-            const { accessToken, refreshToken: newRefreshToken, expiresIn } = response.data;
+            // Backend wraps response in nested structure
+            const responseData = response.data;
+            const payload = responseData.data?.data?.payload || responseData.data?.payload || responseData.payload;
+
+            if (!payload?.token) {
+                console.error('Unexpected refresh token response structure:', responseData);
+                return null;
+            }
+
+            const accessToken = payload.token;
+            const newRefreshToken = payload.refresh_token || refreshToken;
 
             await authStorage.setTokens(accessToken, newRefreshToken);
 
+            console.log('Token refreshed successfully');
             return {
                 accessToken,
                 refreshToken: newRefreshToken,
-                expiresIn,
+                expiresIn: 604800, // 7 days default
             };
-        } catch (error) {
-            console.error('Token refresh failed:', error);
+        } catch (error: any) {
+            console.error('Token refresh failed:', error.response?.data || error.message);
             await authStorage.clearSession();
             return null;
         }
@@ -215,19 +240,58 @@ export const authApi = {
 
     /**
      * Get current user profile
+     * 
+     * Backend Response Format:
+     * {
+     *   status: "Success",
+     *   statusCode: 200,
+     *   message: "User retrieved successfully",
+     *   data: {
+     *     user: { id, email, name, ... }
+     *   }
+     * }
      */
     async getCurrentUser(): Promise<User | null> {
         try {
             const token = await authStorage.getToken();
 
             if (!token) {
+                console.log('No token found, cannot get current user');
                 return null;
             }
 
             const response = await api.get(AUTH.ME);
-            return response.data.user as User;
-        } catch (error) {
+            
+            // Backend wraps response in: { status, data: { user } }
+            const responseData = response.data;
+            const user = responseData.data?.user || responseData.user;
+
+            if (!user) {
+                console.error('Unexpected getCurrentUser response structure:', responseData);
+                return null;
+            }
+
+            // Map user fields (backend uses 'name', we use 'firstName')
+            const mappedUser: User = {
+                id: user.id,
+                email: user.email,
+                firstName: user.name || user.firstName || 'User',
+                lastName: user.lastName || '',
+                isVerified: user.isVerified ?? true,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+            };
+
+            console.log('Current user retrieved:', mappedUser.email);
+            return mappedUser;
+        } catch (error: any) {
             console.error('Get current user failed:', error);
+            
+            // If 401, token is invalid - clear storage
+            if (error.response?.status === 401) {
+                await authStorage.clearSession();
+            }
+            
             return null;
         }
     },

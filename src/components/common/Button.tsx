@@ -11,7 +11,8 @@ import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { LucideIcon } from 'lucide-react-native';
-import { Colors, BorderRadius, Spacing, Typography, Shadows } from '@/constants/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { BorderRadius, Spacing, Typography, Shadows } from '@/constants/theme';
 
 type ButtonVariant = 'gradient' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'text';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -41,8 +42,7 @@ export default function Button({
     fullWidth = true,
     hapticFeedback = 'medium',
 }: ButtonProps) {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
+    const { colors, isDark } = useTheme();
 
     const handlePress = useCallback(() => {
         if (disabled || loading) return;
@@ -93,8 +93,8 @@ export default function Button({
 
     const renderContent = () => {
         const textColor = variant === 'outline' || variant === 'ghost' || variant === 'text'
-            ? (isDark ? Colors.primaryLight : Colors.primary)
-            : Colors.textLight;
+            ? (isDark ? colors.primaryLight : colors.primary)
+            : colors.textOnPrimary;
 
         return (
             <View style={styles.contentContainer}>
@@ -135,18 +135,18 @@ export default function Button({
 
     const getOutlineStyles = () => ({
         borderWidth: 1.5,
-        borderColor: isDark ? Colors.primaryLight : Colors.primary,
+        borderColor: isDark ? colors.primaryLight : colors.primary,
         backgroundColor: 'transparent',
     });
 
     const getGhostStyles = () => ({
-        backgroundColor: isDark ? Colors.surfaceDark : Colors.surfaceMuted,
+        backgroundColor: isDark ? colors.surface : colors.surfaceLight,
     });
 
     const getSecondaryStyles = () => ({
-        backgroundColor: isDark ? Colors.bgDark : Colors.cream,
+        backgroundColor: isDark ? colors.background : colors.surfaceLight,
         borderWidth: 1,
-        borderColor: isDark ? Colors.borderDark : Colors.borderLight,
+        borderColor: colors.border,
     });
 
     if (variant === 'gradient') {
@@ -169,7 +169,7 @@ export default function Button({
                         }}
                     >
                         <LinearGradient
-                            colors={isDark ? ['#5A9DE8', '#7B8FE8'] : ['#4A90D9', '#6B7FD9']}
+                            colors={isDark ? [colors.primary, colors.accent] : [colors.primary, colors.accent]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={[
@@ -224,7 +224,7 @@ export default function Button({
                     style={[
                         styles.button,
                         { height: sizeStyles.height },
-                        variant === 'primary' && styles.primaryButton,
+                        variant === 'primary' && { backgroundColor: colors.primary },
                         variant === 'secondary' && getSecondaryStyles(),
                         variant === 'outline' && getOutlineStyles(),
                         variant === 'ghost' && getGhostStyles(),
@@ -246,7 +246,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
     },
     primaryButton: {
-        backgroundColor: Colors.primary,
     },
     contentContainer: {
         flexDirection: 'row',

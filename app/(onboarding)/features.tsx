@@ -17,6 +17,12 @@ import Svg, { Path, Circle, Line, Rect, Defs, LinearGradient, Stop } from 'react
 // Import theme hook
 import { useTheme } from '@/contexts/ThemeContext';
 
+// Import new components
+import TradingBotsShowcase from '@/components/onboarding/TradingBotsShowcase';
+import PricingPlans from '@/components/onboarding/PricingPlans';
+import WhyChooseUs from '@/components/onboarding/WhyChooseUs';
+import SuccessModal from '@/components/onboarding/SuccessModal';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Exchanges with logos
@@ -150,7 +156,7 @@ const AnimatedCandleChart = ({ colors }: { colors: any }) => {
                     />
                 </Svg>
 
-                <View style={styles.chartFooter}>
+                <View style={[styles.chartFooter, { borderTopColor: colors.border }]}>
                     <View style={styles.chartStat}>
                         <Text style={[styles.chartStatLabel, { color: colors.textLight }]}>Win Rate</Text>
                         <Text style={[styles.chartStatValue, { color: colors.text }]}>94.7%</Text>
@@ -302,7 +308,7 @@ const AllInOneOrbit = ({ colors }: { colors: any }) => {
 
                             {/* Center Bot */}
                             <View style={[styles.centerBot, { backgroundColor: colors.primary, paddingTop: 4 }]}>
-                                <MaterialCommunityIcons name="robot" size={36} color="#FFFFFF" />
+                                <MaterialCommunityIcons name="robot" size={36} color={colors.textOnPrimary} />
                             </View>
                         </View>
                     </View>
@@ -388,6 +394,7 @@ const FeatureCard = ({
 export default function FeaturesScreen() {
     const { colors, isDark, toggleTheme } = useTheme();
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Features with dynamic colors and details
     const FEATURES = [
@@ -446,7 +453,19 @@ export default function FeaturesScreen() {
     ];
 
     const handleContinue = () => {
-        router.push('/login');
+        setShowSuccessModal(true);
+        
+        // Auto-close after animation completes and navigate
+        setTimeout(() => {
+            // Modal will handle navigation through its onContinue prop
+        }, 3000);
+    };
+
+    const handleModalContinue = () => {
+        setShowSuccessModal(false);
+        setTimeout(() => {
+            router.push('/login');
+        }, 300);
     };
 
     const handleBack = () => {
@@ -522,6 +541,15 @@ export default function FeaturesScreen() {
                 {/* All-In-One Orbital Visualization */}
                 <AllInOneOrbit colors={colors} />
 
+                {/* Trading Bots Showcase */}
+                <TradingBotsShowcase />
+
+                {/* Why Choose Us Section */}
+                <WhyChooseUs />
+
+                {/* Pricing Plans Section */}
+                <PricingPlans />
+
                 {/* Features List */}
                 <View style={styles.featuresSection}>
                     <Text style={[styles.sectionLabel, { color: colors.textLight }]}>KEY FEATURES</Text>
@@ -553,13 +581,19 @@ export default function FeaturesScreen() {
                     labelStyle={styles.ctaButtonLabel}
                     buttonColor={colors.primary}
                 >
-                    Let's Make Money
+                    Get Started for Free
                 </Button>
                 <View style={styles.ctaInfo}>
                     <MaterialCommunityIcons name="check-circle" size={16} color={colors.success} />
                     <Text style={[styles.ctaInfoText, { color: colors.textSecondary }]}>Free 14-day trial • No card required</Text>
                 </View>
             </View>
+
+            {/* Success Modal */}
+            <SuccessModal
+                visible={showSuccessModal}
+                onContinue={handleModalContinue}
+            />
         </View>
     );
 }
@@ -655,7 +689,6 @@ const styles = StyleSheet.create({
         marginTop: 16,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.05)',
     },
     chartStat: {
         flex: 1,

@@ -28,18 +28,20 @@ import ExchangeDrawer from '@/components/drawers/ExchangeDrawer';
 import TradingBotCard from '@/components/trading/TradingBotCard';
 import AssetsCard from '@/components/trading/AssetsCard';
 import OpenOrdersCard from '@/components/trading/OpenOrdersCard';
-import AnimatedBackground from '@/components/ui/AnimatedBackground';
+import ConnectExchangeModal from '@/components/modals/ConnectExchangeModal';
 
 // Types
-import { CredentialResponse, getExchangeInfo } from '@/types/exchange.types';
+import { CredentialResponse, getExchangeInfo, ExchangeType } from '@/types/exchange.types';
 
 export default function DashboardScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { selectedExchange, connectedExchanges } = useExchange();
 
-  // Drawer state
+  // Drawer & Modal state
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [connectModalVisible, setConnectModalVisible] = useState(false);
+  const [editExchangeId, setEditExchangeId] = useState<ExchangeType | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
 
   // Scroll tracking for parallax effect
@@ -54,16 +56,14 @@ export default function DashboardScreen() {
 
   // Handle update credentials from drawer (receives full credential object)
   const handleUpdateCredentials = (credential: CredentialResponse) => {
-    // Navigate to connect-exchange with edit mode
-    router.push({
-      pathname: '/(tabs)/connect-exchange',
-      params: { editExchange: credential.exchange },
-    });
+    setEditExchangeId(credential.exchange);
+    setConnectModalVisible(true);
   };
 
   // Handle add new exchange
   const handleAddExchange = () => {
-    router.push('/(tabs)/connect-exchange');
+    setEditExchangeId(undefined);
+    setConnectModalVisible(true);
   };
 
   // Get current exchange info
@@ -71,9 +71,6 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Animated Parallax Background */}
-      <AnimatedBackground scrollY={scrollY} variant="home" />
-
       {/* Header with Hamburger Menu */}
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
         {/* Hamburger Menu Button */}
@@ -114,6 +111,13 @@ export default function DashboardScreen() {
 
         {/* Right Icons */}
         <View style={styles.headerRight}>
+          <IconButton
+            icon={isDark ? 'weather-sunny' : 'moon-waning-crescent'}
+            size={22}
+            iconColor={colors.primary}
+            onPress={toggleTheme}
+            style={{ marginRight: -4 }}
+          />
           <IconButton
             icon="bell-outline"
             size={22}
@@ -169,7 +173,7 @@ export default function DashboardScreen() {
               </View>
               <Button
                 mode="contained"
-                onPress={() => router.push('/(tabs)/connect-exchange')}
+                onPress={handleAddExchange}
                 buttonColor={colors.warning}
                 compact
               >
@@ -211,7 +215,7 @@ export default function DashboardScreen() {
                 styles.actionCard,
                 { backgroundColor: colors.surface, opacity: pressed ? 0.8 : 1 },
               ]}
-              onPress={() => router.push('/(tabs)/connect-exchange')}
+              onPress={handleAddExchange}
             >
               <View style={[styles.actionIcon, { backgroundColor: `${colors.primary}15` }]}>
                 <MaterialCommunityIcons name="link-variant" size={24} color={colors.primary} />
@@ -298,12 +302,18 @@ export default function DashboardScreen() {
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
 
-      {/* Exchange Drawer */}
       <ExchangeDrawer
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         onUpdateCredentials={handleUpdateCredentials}
         onAddExchange={handleAddExchange}
+      />
+
+      {/* Connect/Update Form Modal */}
+      <ConnectExchangeModal
+        visible={connectModalVisible}
+        onClose={() => setConnectModalVisible(false)}
+        editExchangeId={editExchangeId}
       />
     </View>
   );

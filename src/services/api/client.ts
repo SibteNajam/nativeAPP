@@ -93,8 +93,15 @@ api.interceptors.response.use(
         // Log error
         logError(error);
 
-        // Handle 401 Unauthorized
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle 401 Unauthorized - BUT ONLY FOR AUTH ENDPOINTS
+        // Don't refresh token for exchange API errors (Binance, Bitget, etc.)
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/') || originalRequest.url?.includes('/user/');
+        const isExchangeEndpoint = originalRequest.url?.includes('/binance/') || 
+                                   originalRequest.url?.includes('/bitget/') || 
+                                   originalRequest.url?.includes('/mexc/') ||
+                                   originalRequest.url?.includes('/gateio/');
+
+        if (error.response?.status === 401 && !originalRequest._retry && isAuthEndpoint && !isExchangeEndpoint) {
 
             // If already refreshing, wait for it
             if (isRefreshing) {
@@ -120,10 +127,19 @@ api.interceptors.response.use(
                 // Call refresh endpoint
                 const response = await axios.post(
                     `${config.API_URL}${config.ENDPOINTS.AUTH.REFRESH}`,
-                    { refreshToken }
+                    { refresh_token: refreshToken }
                 );
 
-                const { accessToken, refreshToken: newRefreshToken } = response.data;
+                // Parse nested response structure
+                const responseData = response.data;
+                const payload = responseData.data?.data?.payload || responseData.data?.payload || responseData.payload;
+
+                if (!payload?.token) {
+                    throw new Error('Invalid refresh response');
+                }
+
+                const accessToken = payload.token;
+                const newRefreshToken = payload.refresh_token || refreshToken;
 
                 // Store new tokens
                 await authStorage.setTokens(accessToken, newRefreshToken);

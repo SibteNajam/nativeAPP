@@ -25,10 +25,13 @@ import Animated, {
     withDelay,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useExchange } from '@/contexts/ExchangeContext';
+import { useCredentials } from '@/hooks/useCredentials';
 import { getExchangeInfo } from '@/types/exchange.types';
+import BotSelectionModal from './BotSelectionModal';
 
 type BotStatus = 'idle' | 'activating' | 'active' | 'deactivating';
 
@@ -36,11 +39,54 @@ interface TradingBotCardProps {
     onStatusChange?: (isActive: boolean) => void;
 }
 
+const SELECTED_BOT_KEY = '@selected_trading_bot';
+
 export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) {
     const { colors } = useTheme();
-    const { selectedExchange } = useExchange();
+    const { selectedExchange, selectedCredential, refreshExchanges } = useExchange();
+    const { toggleCredential } = useCredentials();
 
     const [botStatus, setBotStatus] = useState<BotStatus>('idle');
+    const [showBotModal, setShowBotModal] = useState(false);
+    const [selectedBot, setSelectedBot] = useState<{ id: string; name: string } | null>(null);
+
+    // Load selected bot from storage
+    useEffect(() => {
+        loadSelectedBot();
+    }, []);
+
+    const loadSelectedBot = async () => {
+        try {
+            const saved = await AsyncStorage.getItem(SELECTED_BOT_KEY);
+            if (saved) {
+                setSelectedBot(JSON.parse(saved));
+            } else {
+                // Default to Conservative Trader
+                setSelectedBot({ id: 'conservative-trader', name: 'Conservative Trader' });
+            }
+        } catch (error) {
+            console.error('Failed to load selected bot:', error);
+        }
+    };
+
+    const handleBotSelection = async (botId: string, botName: string) => {
+        const bot = { id: botId, name: botName };
+        setSelectedBot(bot);
+        try {
+            await AsyncStorage.setItem(SELECTED_BOT_KEY, JSON.stringify(bot));
+        } catch (error) {
+            console.error('Failed to save selected bot:', error);
+        }
+    };
+
+    // Sync bot status with backend activeTrading state
+    useEffect(() => {
+        if (selectedCredential?.activeTrading) {
+            setBotStatus('active');
+        } else {
+            setBotStatus('idle');
+        }
+    }, [selectedCredential?.activeTrading, selectedExchange]);
 
     // Idle state animations
     const ringScale = useSharedValue(1);
@@ -226,30 +272,60 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
 
     // Handlers
     const handleActivate = async () => {
-        if (botStatus !== 'idle') return;
+        if (botStatus !== 'idle' || !selectedCredential) return;
+
+        // Open bot selection modal
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowBotModal(true);
+    };
+
+    const handleStartTrading = async () => {
+        if (botStatus !== 'idle' || !selectedCredential) return;
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setBotStatus('activating');
         progressValue.value = withTiming(1, { duration: 2000 });
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setBotStatus('active');
-        progressValue.value = 0;
-        onStatusChange?.(true);
+        try {
+            // Toggle on backend
+            const success = await toggleCredential(selectedCredential.id);
+            if (success) {
+                await refreshExchanges();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setBotStatus('active');
+            } else {
+                setBotStatus('idle');
+            }
+        } catch (error) {
+            console.error('Failed to activate bot:', error);
+            setBotStatus('idle');
+        } finally {
+            progressValue.value = 0;
+            onStatusChange?.(true);
+        }
     };
 
     const handleDeactivate = async () => {
-        if (botStatus !== 'active') return;
+        if (botStatus !== 'active' || !selectedCredential) return;
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setBotStatus('deactivating');
 
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        setBotStatus('idle');
-        onStatusChange?.(false);
+        try {
+            // Toggle on backend
+            const success = await toggleCredential(selectedCredential.id);
+            if (success) {
+                await refreshExchanges();
+                setBotStatus('idle');
+            } else {
+                setBotStatus('active');
+            }
+        } catch (error) {
+            console.error('Failed to deactivate bot:', error);
+            setBotStatus('active');
+        } finally {
+            onStatusChange?.(false);
+        }
     };
 
     const exchangeInfo = selectedExchange ? getExchangeInfo(selectedExchange) : null;
@@ -289,28 +365,43 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
     // ========================================
     if (botStatus === 'active') {
         return (
-            <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={0}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        <View style={[styles.exchangeIcon, { backgroundColor: `${exchangeInfo.color}15` }]}>
-                            <MaterialCommunityIcons
-                                name={exchangeInfo.icon as any}
-                                size={18}
-                                color={exchangeInfo.color}
-                            />
+            <>
+                <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={0}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <View style={styles.headerLeft}>
+                            <View style={[styles.exchangeIcon, { backgroundColor: `${exchangeInfo.color}15` }]}>
+                                <MaterialCommunityIcons
+                                    name={exchangeInfo.icon as any}
+                                    size={18}
+                                    color={exchangeInfo.color}
+                                />
+                            </View>
+                            <Text style={[styles.exchangeName, { color: colors.text }]}>
+                                {exchangeInfo.name}
+                            </Text>
                         </View>
-                        <Text style={[styles.exchangeName, { color: colors.text }]}>
-                            {exchangeInfo.name}
-                        </Text>
+                        <View style={[styles.statusBadge, { backgroundColor: `${colors.primary}20` }]}>
+                            <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
+                            <Text style={[styles.statusBadgeText, { color: colors.primary }]}>
+                                LIVE TRADING
+                            </Text>
+                        </View>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: `${colors.primary}20` }]}>
-                        <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-                        <Text style={[styles.statusBadgeText, { color: colors.primary }]}>
-                            LIVE TRADING
-                        </Text>
-                    </View>
-                </View>
+
+                    {/* Selected Bot Indicator */}
+                    {selectedBot && (
+                        <View style={[styles.botIndicator, { backgroundColor: colors.background }]}>
+                            <MaterialCommunityIcons
+                                name={selectedBot.id === 'conservative-trader' ? 'shield-check' : 'lightning-bolt'}
+                                size={16}
+                                color={selectedBot.id === 'conservative-trader' ? '#10b981' : '#f59e0b'}
+                            />
+                            <Text style={[styles.botIndicatorText, { color: colors.text }]}>
+                                Strategy: {selectedBot.name}
+                            </Text>
+                        </View>
+                    )}
 
                 {/* Active Trading Animation Area */}
                 <View style={styles.activeContainer}>
@@ -378,16 +469,16 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                     </Animated.View>
 
                     {/* Floating icons around robot */}
-                    <View style={[styles.floatingIcon, styles.floatingIcon1]}>
+                    <View style={[styles.floatingIcon, styles.floatingIcon1, { backgroundColor: `${colors.primary}1A` }]}>
                         <MaterialCommunityIcons name="chart-line-variant" size={20} color={colors.primary} />
                     </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon2]}>
+                    <View style={[styles.floatingIcon, styles.floatingIcon2, { backgroundColor: `${colors.primary}1A` }]}>
                         <MaterialCommunityIcons name="swap-horizontal-bold" size={20} color={colors.primaryLight} />
                     </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon3]}>
+                    <View style={[styles.floatingIcon, styles.floatingIcon3, { backgroundColor: `${colors.primary}1A` }]}>
                         <MaterialCommunityIcons name="currency-usd" size={20} color={colors.primary} />
                     </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon4]}>
+                    <View style={[styles.floatingIcon, styles.floatingIcon4, { backgroundColor: `${colors.primary}1A` }]}>
                         <MaterialCommunityIcons name="trending-up" size={20} color={colors.primaryLight} />
                     </View>
                 </View>
@@ -424,6 +515,15 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                     </Text>
                 </View>
             </Surface>
+
+            {/* Bot Selection Modal */}
+            <BotSelectionModal
+                visible={showBotModal}
+                onClose={() => setShowBotModal(false)}
+                onSelectBot={handleBotSelection}
+                currentlySelected={selectedBot?.id}
+            />
+        </>
         );
     }
 
@@ -431,31 +531,56 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
     // IDLE / ACTIVATING / DEACTIVATING STATE
     // ========================================
     return (
-        <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={0}>
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <View style={[styles.exchangeIcon, { backgroundColor: `${exchangeInfo.color}15` }]}>
-                        <MaterialCommunityIcons
-                            name={exchangeInfo.icon as any}
-                            size={18}
-                            color={exchangeInfo.color}
-                        />
+        <>
+            <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={0}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={[styles.exchangeIcon, { backgroundColor: `${exchangeInfo.color}15` }]}>
+                            <MaterialCommunityIcons
+                                name={exchangeInfo.icon as any}
+                                size={18}
+                                color={exchangeInfo.color}
+                            />
+                        </View>
+                        <Text style={[styles.exchangeName, { color: colors.text }]}>
+                            {exchangeInfo.name}
+                        </Text>
                     </View>
-                    <Text style={[styles.exchangeName, { color: colors.text }]}>
-                        {exchangeInfo.name}
-                    </Text>
+                    <View style={[
+                        styles.statusBadge,
+                        { backgroundColor: `${statusColor}15` }
+                    ]}>
+                        <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                            {botStatus === 'activating' ? 'CONNECTING' :
+                                botStatus === 'deactivating' ? 'STOPPING' : 'OFFLINE'}
+                        </Text>
+                    </View>
                 </View>
-                <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: `${statusColor}15` }
-                ]}>
-                    <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                        {botStatus === 'activating' ? 'CONNECTING' :
-                            botStatus === 'deactivating' ? 'STOPPING' : 'OFFLINE'}
-                    </Text>
-                </View>
-            </View>
+
+                {/* Selected Bot Indicator */}
+                {selectedBot && (
+                    <View style={[styles.botIndicator, { backgroundColor: colors.background }]}>
+                        <MaterialCommunityIcons
+                            name={selectedBot.id === 'conservative-trader' ? 'shield-check' : 'lightning-bolt'}
+                            size={16}
+                            color={selectedBot.id === 'conservative-trader' ? '#10b981' : '#f59e0b'}
+                        />
+                        <Text style={[styles.botIndicatorText, { color: colors.text }]}>
+                            Selected: {selectedBot.name}
+                        </Text>
+                        <Pressable
+                            onPress={() => setShowBotModal(true)}
+                            style={({ pressed }) => [{
+                                opacity: pressed ? 0.6 : 1,
+                            }]}
+                        >
+                            <Text style={[styles.changeBotText, { color: colors.primary }]}>
+                                Change
+                            </Text>
+                        </Pressable>
+                    </View>
+                )}
 
             {/* Power Button Area */}
             <View style={styles.powerButtonContainer}>
@@ -528,6 +653,15 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                 </View>
             )}
         </Surface>
+
+        {/* Bot Selection Modal */}
+        <BotSelectionModal
+            visible={showBotModal}
+            onClose={() => setShowBotModal(false)}
+            onSelectBot={handleBotSelection}
+            currentlySelected={selectedBot?.id}
+        />
+    </>
     );
 }
 
@@ -666,7 +800,6 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: 'rgba(124, 58, 237, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -751,5 +884,24 @@ const styles = StyleSheet.create({
     },
     footerHintText: {
         fontSize: 12,
+    },
+    // Bot Indicator
+    botIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    botIndicatorText: {
+        fontSize: 13,
+        fontWeight: '600',
+        flex: 1,
+    },
+    changeBotText: {
+        fontSize: 13,
+        fontWeight: '600',
     },
 });

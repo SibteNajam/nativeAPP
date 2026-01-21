@@ -31,7 +31,7 @@ interface AnimatedBackgroundProps {
 }
 
 export default function AnimatedBackground({ scrollY, variant = 'home' }: AnimatedBackgroundProps) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
 
     // Different shape configurations for different pages
     const shapes = getShapesForVariant(variant as VariantType, colors);
@@ -130,11 +130,11 @@ export default function AnimatedBackground({ scrollY, variant = 'home' }: Animat
                 <MotiView
                     key={`orb-${index}`}
                     from={{
-                        opacity: 0.05,
+                        opacity: 0,
                         scale: 1,
                     }}
                     animate={{
-                        opacity: [0.08, 0.15, 0.08],
+                        opacity: isDark ? [0.08, 0.15, 0.08] : [0.03, 0.06, 0.03],
                         scale: [1, 1.1, 1],
                     }}
                     transition={{
@@ -161,16 +161,20 @@ export default function AnimatedBackground({ scrollY, variant = 'home' }: Animat
 
 // Generate shapes based on page variant
 function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
+    // Use higher opacity for light mode, lower for dark mode
+    const isDark = colors.background === '#0A0A0A' || colors.background === '#121212';
+    const shapeOpacity = isDark ? 1 : 0.6;
+    
     const baseShapes: Record<VariantType, ShapeConfig[]> = {
         home: [
             {
                 top: '10%',
                 left: '5%',
                 size: 100,
-                color: `${colors.primary}15`,
+                color: colors.primary,
                 borderRadius: 20,
                 rotation: '15deg',
-                opacity: 0.4,
+                opacity: isDark ? 0.15 : 0.08,
                 animationDelay: 0,
                 parallaxSpeed: -0.5,
             },
@@ -178,10 +182,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '25%',
                 left: '75%',
                 size: 80,
-                color: `${colors.neonBlue}10`,
+                color: colors.accent,
                 borderRadius: 40,
                 rotation: '-20deg',
-                opacity: 0.3,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 200,
                 parallaxSpeed: 0.8,
             },
@@ -189,10 +193,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '50%',
                 left: '10%',
                 size: 120,
-                color: `${colors.success}08`,
+                color: colors.success,
                 borderRadius: 60,
                 rotation: '45deg',
-                opacity: 0.2,
+                opacity: isDark ? 0.1 : 0.05,
                 animationDelay: 400,
                 parallaxSpeed: -0.3,
             },
@@ -200,10 +204,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '65%',
                 left: '70%',
                 size: 90,
-                color: `${colors.primaryLight}12`,
+                color: colors.primaryLight,
                 borderRadius: 15,
                 rotation: '-30deg',
-                opacity: 0.35,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 600,
                 parallaxSpeed: 0.6,
             },
@@ -213,10 +217,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '5%',
                 left: '15%',
                 size: 110,
-                color: `${colors.neonPurple}15`,
+                color: colors.accent,
                 borderRadius: 55,
                 rotation: '0deg',
-                opacity: 0.3,
+                opacity: isDark ? 0.15 : 0.07,
                 animationDelay: 0,
                 parallaxSpeed: -0.4,
             },
@@ -224,10 +228,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '20%',
                 left: '80%',
                 size: 70,
-                color: `${colors.warning}12`,
+                color: colors.warning,
                 borderRadius: 12,
                 rotation: '25deg',
-                opacity: 0.25,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 300,
                 parallaxSpeed: 0.7,
             },
@@ -235,10 +239,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '45%',
                 left: '5%',
                 size: 95,
-                color: `${colors.success}10`,
+                color: colors.success,
                 borderRadius: 48,
                 rotation: '-15deg',
-                opacity: 0.28,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 500,
                 parallaxSpeed: -0.6,
             },
@@ -246,10 +250,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '70%',
                 left: '75%',
                 size: 130,
-                color: `${colors.primary}10`,
+                color: colors.primary,
                 borderRadius: 25,
                 rotation: '40deg',
-                opacity: 0.2,
+                opacity: isDark ? 0.1 : 0.05,
                 animationDelay: 700,
                 parallaxSpeed: 0.5,
             },
@@ -259,10 +263,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '8%',
                 left: '10%',
                 size: 140,
-                color: `${colors.primary}20`,
+                color: colors.primary,
                 borderRadius: 70,
                 rotation: '0deg',
-                opacity: 0.4,
+                opacity: isDark ? 0.2 : 0.08,
                 animationDelay: 0,
                 parallaxSpeed: -0.3,
             },
@@ -270,10 +274,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '30%',
                 left: '70%',
                 size: 100,
-                color: `${colors.neonBlue}15`,
+                color: colors.accent,
                 borderRadius: 20,
                 rotation: '45deg',
-                opacity: 0.35,
+                opacity: isDark ? 0.15 : 0.07,
                 animationDelay: 250,
                 parallaxSpeed: 0.5,
             },
@@ -281,10 +285,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '55%',
                 left: '15%',
                 size: 85,
-                color: `${colors.success}12`,
+                color: colors.success,
                 borderRadius: 18,
                 rotation: '-25deg',
-                opacity: 0.3,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 450,
                 parallaxSpeed: -0.7,
             },
@@ -292,10 +296,10 @@ function getShapesForVariant(variant: VariantType, colors: any): ShapeConfig[] {
                 top: '75%',
                 left: '65%',
                 size: 115,
-                color: `${colors.primaryLight}18`,
+                color: colors.primaryLight,
                 borderRadius: 58,
                 rotation: '20deg',
-                opacity: 0.25,
+                opacity: isDark ? 0.12 : 0.06,
                 animationDelay: 650,
                 parallaxSpeed: 0.4,
             },

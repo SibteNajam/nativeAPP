@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
+import { useTheme } from '@/contexts/ThemeContext';
+
 // Icon Components
 const MailIcon = ({ color = '#94A3B8', size = 20 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -75,6 +77,7 @@ export default function FloatingLabelInput({
     secureTextEntry,
     ...props
 }: FloatingLabelInputProps) {
+    const { colors } = useTheme();
     const [isFocused, setIsFocused] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -115,11 +118,11 @@ export default function FloatingLabelInput({
         }),
         color: animatedValue.interpolate({
             inputRange: [0, 1],
-            outputRange: ['#64748B', isFocused ? '#4DA6FF' : error ? '#EF4444' : '#94A3B8'],
+            outputRange: [colors.textSecondary, isFocused ? colors.primary : error ? colors.error : colors.textLight],
         }),
         backgroundColor: animatedValue.interpolate({
             inputRange: [0, 1],
-            outputRange: ['transparent', '#0F2744'],
+            outputRange: ['transparent', colors.background === '#0D1117' ? '#0D1117' : colors.surface],
         }),
         paddingHorizontal: animatedValue.interpolate({
             inputRange: [0, 1],
@@ -128,15 +131,16 @@ export default function FloatingLabelInput({
     };
 
     const IconComponent = icon ? IconMap[icon] : null;
-    const iconColor = isFocused ? '#4DA6FF' : error ? '#EF4444' : '#64748B';
+    const iconColor = isFocused ? colors.primary : error ? colors.error : colors.textLight;
 
     return (
         <View style={styles.wrapper}>
             <View
                 style={[
                     styles.container,
-                    isFocused && styles.containerFocused,
-                    error && styles.containerError,
+                    isFocused && [styles.containerFocused, { borderColor: colors.primary, backgroundColor: `${colors.primary}10` }],
+                    error && [styles.containerError, { borderColor: colors.error, backgroundColor: `${colors.error}10` }],
+                    { backgroundColor: colors.surface, borderColor: colors.border }
                 ]}
             >
                 {/* Icon */}
@@ -161,6 +165,7 @@ export default function FloatingLabelInput({
                 <TextInput
                     style={[
                         styles.input,
+                        { color: colors.text },
                         icon && styles.inputWithIcon,
                         secureTextEntry && styles.inputWithEye,
                     ]}
@@ -181,9 +186,9 @@ export default function FloatingLabelInput({
                         activeOpacity={0.7}
                     >
                         {showPassword ? (
-                            <EyeOffIcon color="#64748B" size={20} />
+                            <EyeOffIcon color={colors.textLight} size={20} />
                         ) : (
-                            <EyeIcon color="#64748B" size={20} />
+                            <EyeIcon color={colors.textLight} size={20} />
                         )}
                     </TouchableOpacity>
                 )}
@@ -191,7 +196,7 @@ export default function FloatingLabelInput({
 
             {/* Error Message */}
             {error && (
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             )}
         </View>
     );
@@ -204,20 +209,14 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
         borderRadius: 14,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.12)',
         height: 58,
         position: 'relative',
     },
     containerFocused: {
-        borderColor: '#4DA6FF',
-        backgroundColor: 'rgba(77, 166, 255, 0.06)',
     },
     containerError: {
-        borderColor: '#EF4444',
-        backgroundColor: 'rgba(239, 68, 68, 0.06)',
     },
     iconContainer: {
         paddingLeft: 16,
@@ -231,7 +230,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: '100%',
         fontSize: 16,
-        color: '#FFFFFF',
         paddingHorizontal: 16,
         paddingTop: 8,
     },
@@ -247,7 +245,6 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     errorText: {
-        color: '#EF4444',
         fontSize: 12,
         marginTop: 6,
         marginLeft: 4,

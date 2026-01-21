@@ -39,7 +39,7 @@ import {
 } from '@/types/exchange.types';
 
 export default function ConnectExchangeScreen() {
-    const { colors, isDark } = useTheme();
+    const { colors, isDark, toggleTheme } = useTheme();
     const { user } = useAuth();
 
     // Get route params (for edit mode from sidebar)
@@ -253,16 +253,25 @@ export default function ConnectExchangeScreen() {
                         </Text>
                     </View>
                 </View>
-                {credentials.length > 0 && (
-                    <Button
-                        mode="text"
-                        onPress={handleContinue}
-                        textColor={colors.primary}
+                <View style={styles.headerRight}>
+                    <IconButton
+                        icon={isDark ? 'weather-sunny' : 'moon-waning-crescent'}
+                        size={22}
+                        iconColor={colors.primary}
+                        onPress={toggleTheme}
+                    />
+                    {credentials.length > 0 && (
+                        <Button
+                            mode="text"
+                            onPress={handleContinue}
+                            textColor={colors.primary}
                     >
                         Skip
                     </Button>
                 )}
             </View>
+            </View>
+
 
             <ScrollView
                 style={styles.scrollView}
@@ -338,7 +347,7 @@ export default function ConnectExchangeScreen() {
                                         {/* Status Badge */}
                                         {isConnected && (
                                             <View style={[styles.connectedBadge, { backgroundColor: colors.success }]}>
-                                                <MaterialCommunityIcons name="check" size={12} color="#FFF" />
+                                                <MaterialCommunityIcons name="check" size={12} color={colors.textOnPrimary} />
                                             </View>
                                         )}
 
@@ -420,7 +429,7 @@ export default function ConnectExchangeScreen() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ type: 'timing', duration: 200 }}
-                        style={[styles.formOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+                        style={[styles.formOverlay, { backgroundColor: colors.overlay }]}
                     >
                         <Pressable style={styles.formBackdrop} onPress={handleCloseForm} />
 
@@ -432,7 +441,7 @@ export default function ConnectExchangeScreen() {
                             style={[styles.formSheet, { backgroundColor: colors.background }]}
                         >
                             {/* Form Header */}
-                            <View style={styles.formHeader}>
+                            <View style={[styles.formHeader, { borderBottomColor: colors.border }]}>
                                 <View style={styles.formHeaderLeft}>
                                     <View style={[styles.formExchangeIcon, { backgroundColor: `${selectedExchange.color}20` }]}>
                                         <MaterialCommunityIcons
@@ -623,6 +632,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        flex: 1,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: -8,
     },
     headerIcon: {
         width: 48,
@@ -771,7 +786,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.05)',
     },
     formHeaderLeft: {
         flexDirection: 'row',
