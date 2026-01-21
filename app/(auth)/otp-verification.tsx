@@ -21,6 +21,7 @@ import {
     Platform,
     Alert,
     Animated,
+    Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +41,7 @@ export default function OTPVerificationScreen() {
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Timer State
     const [timeLeft, setTimeLeft] = useState(OTP_EXPIRY_MINUTES * 60); // 10 minutes in seconds
@@ -162,16 +164,11 @@ export default function OTPVerificationScreen() {
             });
 
             if (response.success) {
-                Alert.alert(
-                    'Success! 🎉',
-                    'Your email has been verified. You can now login.',
-                    [
-                        {
-                            text: 'Login',
-                            onPress: () => router.replace('/(auth)/login'),
-                        },
-                    ]
-                );
+                setShowSuccessModal(true);
+                setTimeout(() => {
+                    setShowSuccessModal(false);
+                    router.replace('/(auth)/login');
+                }, 2000);
             } else {
                 setError(response.message || 'Invalid OTP code');
                 triggerShake();
@@ -352,6 +349,25 @@ export default function OTPVerificationScreen() {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            {/* Success Modal */}
+            <Modal
+                visible={showSuccessModal}
+                transparent
+                animationType="fade"
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={[styles.successIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                            <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Success! 🎉</Text>
+                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+                            Your email has been verified.{'\n'}Redirecting to login...
+                        </Text>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -465,5 +481,43 @@ const styles = StyleSheet.create({
     },
     resendButtonDisabled: {
         opacity: 0.5,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 340,
+        borderRadius: 20,
+        padding: 32,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    successIconContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    modalMessage: {
+        fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 20,
     },
 });
