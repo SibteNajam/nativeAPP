@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance User Data Stream Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeeba;
+        }
+        .events {
+            margin-top: 20px;
+        }
+        .event {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 5px solid;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .event.new {
+            background: #e7f3ff;
+            border-color: #2196F3;
+        }
+        .event.filled {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        .event.canceled {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        .event.partially_filled {
+            background: #fff9c4;
+            border-color: #FFC107;
+        }
+        .event.rejected {
+            background: #fce4ec;
+            border-color: #E91E63;
+        }
+        .event-header {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .event-emoji {
+            font-size: 24px;
+        }
+        .event-details {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+        }
+        .event-time {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .clear-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 20px auto;
+        }
+        .clear-btn:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .no-events {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Binance User Data Stream Monitor</h1>
+        <p class="subtitle">Real-time Order Updates</p>
+
+        <div id="status" class="status connecting">
+            🔄 Connecting to server...
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="total-orders">0</div>
+                <div class="stat-label">Total Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="filled-orders">0</div>
+                <div class="stat-label">Filled Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="canceled-orders">0</div>
+                <div class="stat-label">Canceled Orders</div>
+            </div>
+        </div>
+
+        <button class="clear-btn" onclick="clearEvents()">🗑️ Clear Events</button>
+
+        <div class="events" id="events">
+            <div class="no-events">
+                ⏳ Waiting for order events...<br>
+                <small>Place an order through your exchange controller to see real-time updates here!</small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Connect to Socket.IO server
+        const socket = io('http://localhost:3000', {
+            transports: ['websocket'],
+            cors: {
+                origin: 'http://localhost:3001',
+                credentials: true,
+            },
+        });
+
+        let totalOrders = 0;
+        let filledOrders = 0;
+        let canceledOrders = 0;
+
+        // Connection status
+        socket.on('connect', () => {
+            updateStatus('connected', '✅ Connected to Binance User Data Stream');
+            console.log('✅ Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('disconnected', '❌ Disconnected from server');
+            console.log('❌ Disconnected from server');
+        });
+
+        socket.on('user_data_stream_status', (data) => {
+            console.log('User Data Stream Status:', data);
+            if (data.status === 'connected') {
+                updateStatus('connected', '✅ User Data Stream Active');
+            } else if (data.status === 'disconnected') {
+                updateStatus('disconnected', '⚠️ User Data Stream Disconnected');
+            } else if (data.status === 'error') {
+                updateStatus('disconnected', `❌ Error: ${data.error}`);
+            }
+        });
+
+        // Order updates
+        socket.on('order_update', (data) => {
+            console.log('📦 Order Update:', data);
+            addOrderEvent(data);
+            updateStats(data.status);
+        });
+
+        // Balance updates
+        socket.on('balance_update', (data) => {
+            console.log('💰 Balance Update:', data);
+        });
+
+        // List status updates (OCO/OTOCO)
+        socket.on('list_status_update', (data) => {
+            console.log('📋 List Status Update:', data);
+        });
+
+        function updateStatus(className, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${className}`;
+            statusEl.textContent = message;
+        }
+
+        function addOrderEvent(data) {
+            const eventsContainer = document.getElementById('events');
+            
+            // Remove "no events" message
+            const noEvents = eventsContainer.querySelector('.no-events');
+            if (noEvents) {
+                noEvents.remove();
+            }
+
+            const statusClass = data.status.toLowerCase().replace('_', '-');
+            const emoji = getStatusEmoji(data.status);
+            
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${statusClass}`;
+            
+            eventDiv.innerHTML = `
+                <div class="event-header">
+                    <span class="event-emoji">${emoji}</span>
+                    <span>${data.status}: ${data.symbol} ${data.side} ${data.orderType}</span>
+                </div>
+                <div class="event-details">
+                    <strong>Order ID:</strong> ${data.orderId}<br>
+                    <strong>Price:</strong> ${data.price} USDT<br>
+                    <strong>Quantity:</strong> ${data.executedQty} / ${data.quantity}<br>
+                    <strong>Total:</strong> ${data.cumulativeQuoteQty} USDT
+                </div>
+                <div class="event-time">
+                    ${new Date(data.transactionTime).toLocaleString()}
+                </div>
+            `;
+            
+            eventsContainer.insertBefore(eventDiv, eventsContainer.firstChild);
+
+            // Keep only last 50 events
+            const events = eventsContainer.querySelectorAll('.event');
+            if (events.length > 50) {
+                events[events.length - 1].remove();
+            }
+        }
+
+        function getStatusEmoji(status) {
+            const emojis = {
+                'NEW': '🆕',
+                'PARTIALLY_FILLED': '⏳',
+                'FILLED': '✅',
+                'CANCELED': '❌',
+                'REJECTED': '🚫',
+                'EXPIRED': '⏰'
+            };
+            return emojis[status] || '📦';
+        }
+
+        function updateStats(status) {
+            totalOrders++;
+            document.getElementById('total-orders').textContent = totalOrders;
+
+            if (status === 'FILLED') {
+                filledOrders++;
+                document.getElementById('filled-orders').textContent = filledOrders;
+            } else if (status === 'CANCELED') {
+                canceledOrders++;
+                document.getElementById('canceled-orders').textContent = canceledOrders;
+            }
+        }
+
+        function clearEvents() {
+            const eventsContainer = document.getElementById('events');
+            eventsContainer.innerHTML = `
+                <div class="no-events">
+                    ⏳ Waiting for order events...<br>
+                    <small>Place an order through your exchange controller to see real-time updates here!</small>
+                </div>
+            `;
+            
+            // Reset stats
+            totalOrders = 0;
+            filledOrders = 0;
+            canceledOrders = 0;
+            document.getElementById('total-orders').textContent = 0;
+            document.getElementById('filled-orders').textContent = 0;
+            document.getElementById('canceled-orders').textContent = 0;
+        }
+    </script>
+</body>
+</html>
