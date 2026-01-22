@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.byteboom.ai"
+      "bundleIdentifier": "com.byteboom.ai",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -51,7 +54,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6b1ecd8e-3189-4ce2-9230-6e23aa28071c"
+        "projectId": "66fd467b-a03d-4cb8-aec2-abe01230dc45"
       }
     },
     "owner": "sibtenajam",

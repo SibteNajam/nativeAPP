@@ -15,6 +15,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { config } from '@/constants/config';
 import { authStorage } from '@/services/auth/auth.storage';
 import { logRequest, logResponse, logError } from '@/utils/network-logger';
+import { remoteLogger } from '@/utils/remote-logger';
 
 // Create axios instance with base configuration
 export const api = axios.create({
@@ -85,6 +86,15 @@ api.interceptors.response.use(
     (response) => {
         // Log successful response
         logResponse(response);
+        
+        // Send to remote logger in production
+        remoteLogger.logAPI(
+            response.config.method?.toUpperCase() || 'GET',
+            response.config.url || '',
+            response.status,
+            response.data
+        );
+        
         return response;
     },
     async (error: AxiosError) => {
@@ -92,6 +102,14 @@ api.interceptors.response.use(
 
         // Log error
         logError(error);
+        
+        // Send error to remote logger in production
+        remoteLogger.logAPI(
+            error.config?.method?.toUpperCase() || 'GET',
+            error.config?.url || '',
+            error.response?.status || 0,
+            error.response?.data
+        );
 
         // Handle 401 Unauthorized - BUT ONLY FOR AUTH ENDPOINTS
         // Don't refresh token for exchange API errors (Binance, Bitget, etc.)
