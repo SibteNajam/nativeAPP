@@ -20,7 +20,7 @@
  * - Real Device: http://192.168.x.x:3000 (your computer's LAN IP)
  * - Production: https://api.yourdomain.com
  */
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://backend-production-6851.up.railway.app';
 
 /**
  * App Information

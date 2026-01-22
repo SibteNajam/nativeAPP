@@ -22,7 +22,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.byteboom.ai"
+      "package": "com.byteboom.ai",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",
@@ -33,12 +34,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/logo.png",
+          "imageWidth": 150,
           "resizeMode": "contain",
           "backgroundColor": "#7c3aed",
           "dark": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/logo.png",
             "backgroundColor": "#1a0f2e"
           }
         }
@@ -54,12 +55,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "66fd467b-a03d-4cb8-aec2-abe01230dc45"
+        "projectId": "a0e1bf37-04ae-405b-84bb-d8a619dcde84"
       }
     },
     "owner": "sibtenajam",
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/051208a3-8f74-47a9-af43-b6dc9620461e"
     }
   }
 }

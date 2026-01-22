@@ -1,310 +1,234 @@
 /**
- * Global Theme Configuration - Light & Dark Mode Support
- * 
- * Change PRIMARY_COLOR to update the accent color across both themes.
- * Toggle between light/dark mode using the ThemeContext.
+ * Global Theme Configuration - Professional Fintech Edition
+ * * DESIGN SYSTEM: "Modern Trust"
+ * Primary: Indigo Blue (Trust & Innovation)
+ * Dark Mode: Midnight Slate (Premium & Eye-friendly)
+ * Light Mode: Cool White (Clean & Professional)
  */
 
 import { Platform } from 'react-native';
 import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 
 // ===========================================
-// PRIMARY COLOR - Change this to update the accent color
+// PRIMARY COLOR STRATEGY
 // ===========================================
 
-// Choose your primary color:
-// Purple: '#7C3AED'
-// Teal: '#00D4AA'
-// Blue: '#3B82F6'
-// Orange: '#F97316'
+// We use an "Indigo" primary. It sits between Blue (Trust) and Violet (Tech).
+export const PRIMARY_COLOR = '#4F46E5'; 
 
-export const PRIMARY_COLOR = '#7C3AED'; // Purple theme
-
-// Derived primary shades (auto-generated based on PRIMARY_COLOR)
 const PRIMARY_SHADES = {
-  purple: {
-    primary: '#7C3AED',
-    primaryLight: '#A78BFA',
-    primaryDark: '#5B21B6',
-    neon: '#B794F6',
-  },
-  teal: {
-    primary: '#00D4AA',
-    primaryLight: '#4DE8C8',
-    primaryDark: '#00A886',
-    neon: '#00D4FF',
-  },
-  blue: {
-    primary: '#3B82F6',
-    primaryLight: '#60A5FA',
-    primaryDark: '#2563EB',
-    neon: '#38BDF8',
-  },
-  orange: {
-    primary: '#F97316',
-    primaryLight: '#FB923C',
-    primaryDark: '#EA580C',
-    neon: '#FBBF24',
+  // The 'Fintech Indigo' - Professional & Sharp
+  indigo: {
+    primary: '#4F46E5',      // Main Brand Color
+    primaryLight: '#818CF8', // Hover/Active States
+    primaryDark: '#3730A3',  // Deep accents
+    neon: '#6366F1',         // For glowing effects (Charts/Active tabs)
   },
 };
 
-// Get current primary shades
-const getCurrentPrimary = () => {
-  if (PRIMARY_COLOR === '#7C3AED') return PRIMARY_SHADES.purple;
-  if (PRIMARY_COLOR === '#00D4AA') return PRIMARY_SHADES.teal;
-  if (PRIMARY_COLOR === '#3B82F6') return PRIMARY_SHADES.blue;
-  if (PRIMARY_COLOR === '#F97316') return PRIMARY_SHADES.orange;
-  // Default - use the color as-is
-  return {
-    primary: PRIMARY_COLOR,
-    primaryLight: PRIMARY_COLOR,
-    primaryDark: PRIMARY_COLOR,
-    neon: PRIMARY_COLOR,
-  };
-};
-
-const CURRENT_PRIMARY = getCurrentPrimary();
+const CURRENT_PRIMARY = PRIMARY_SHADES.indigo;
 
 // ===========================================
-// LIGHT THEME COLORS
+// LIGHT THEME COLORS (Clean, Airy, Wall Street)
 // ===========================================
 
 export const LIGHT_COLORS = {
-  // Primary Shades (from selected color)
+  // Primary Brand Colors
   primary: CURRENT_PRIMARY.primary,
   primaryLight: CURRENT_PRIMARY.primaryLight,
   primaryDark: CURRENT_PRIMARY.primaryDark,
 
-  // Accent Colors
-  accent: '#C4B5FD',
-  accentLight: '#EDE9FE',
+  // Accent Colors (Subtle background washes)
+  accent: '#E0E7FF',       // Very faint indigo for selection backgrounds
+  accentLight: '#EEF2FF',  // Almost white indigo
 
-  // Neon Colors (for animations)
-  neonPurple: CURRENT_PRIMARY.neon,
-  neonGreen: '#4ADE80',
-  neonBlue: '#38BDF8',
+  // Neon Colors (for charts/animations in light mode)
+  neonPurple: '#8B5CF6',
+  neonGreen: '#10B981',    // Sharp Emerald
+  neonBlue: '#0EA5E9',     // Sky Blue
 
-  // Background Colors (Light)
-  background: '#FAFAFA',
-  surface: '#FFFFFF',
-  surfaceLight: '#F5F3FF',
-  surfaceHighlight: '#EDE9FE',
+  // Background Colors - "Cool Gray" Palette
+  background: '#F8FAFC',   // Not pure white, very subtle cool gray
+  surface: '#FFFFFF',      // Pure white cards
+  surfaceLight: '#F1F5F9', // Secondary background
+  surfaceHighlight: '#E2E8F0', // Borders/Dividers
 
-  // Terminal/Card Colors (Light mode uses subtle dark)
-  terminalBg: '#1E1B2E',
-  terminalHeader: '#2D2A3E',
-  terminalBorder: '#3D3A4E',
+  // Terminal/Card Colors (Specific to your UI)
+  terminalBg: '#1E293B',     // Keep terminal dark even in light mode for contrast
+  terminalHeader: '#0F172A', // Dark header
+  terminalBorder: '#334155', 
   cardBg: '#FFFFFF',
 
-  // Text Colors
-  text: '#1F2937',
-  textSecondary: '#6B7280',
-  textLight: '#9CA3AF',
+  // Text Colors (High Contrast Slate)
+  text: '#0F172A',         // Almost black, deep slate
+  textSecondary: '#64748B', // Muted slate
+  textLight: '#94A3B8',    // Disabled/Hint
   textOnPrimary: '#FFFFFF',
 
-  // Status Colors
-  success: '#10B981',
+  // Financial Status Colors
+  success: '#10B981',      // "TradingView" Green
   successLight: '#D1FAE5',
-  successMuted: '#059669',
-  warning: '#F59E0B',
+  successMuted: '#047857',
+  
+  warning: '#F59E0B',      // Standard Amber
   warningLight: '#FEF3C7',
-  error: '#EF4444',
+  
+  error: '#EF4444',        // "TradingView" Red
   errorLight: '#FEE2E2',
-  errorMuted: '#DC2626',
-  info: '#3B82F6',
+  errorMuted: '#B91C1C',
+  
+  info: '#3B82F6',         // Standard Blue
   infoLight: '#DBEAFE',
 
-  // Trading Colors
-  buy: '#10B981',
-  sell: '#EF4444',
+  // Dedicated Trading Actions
+  buy: '#10B981',          // Green Candle
+  sell: '#EF4444',         // Red Candle
 
-  // Utility Colors
-  border: '#E5E7EB',
-  divider: '#E5E7EB',
-  disabled: '#D1D5DB',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  // Utility
+  border: '#E2E8F0',
+  divider: '#E2E8F0',
+  disabled: '#CBD5E1',
+  overlay: 'rgba(15, 23, 42, 0.6)',
   white: '#FFFFFF',
   black: '#000000',
 
-  // Traffic Light Colors
+  // macOS Window Controls
   trafficRed: '#FF5F57',
   trafficYellow: '#FFBD2E',
   trafficGreen: '#28CA42',
 
-  // Status Bar
   statusBar: 'dark-content' as const,
 };
 
 // ===========================================
-// DARK THEME COLORS
+// DARK THEME COLORS (Premium, Midnight, Crypto)
 // ===========================================
 
 export const DARK_COLORS = {
-  // Primary Shades (from selected color)
-  primary: CURRENT_PRIMARY.primary,
-  primaryLight: CURRENT_PRIMARY.primaryLight,
-  primaryDark: CURRENT_PRIMARY.primaryDark,
+  // Primary Brand Colors
+  primary: '#6366F1',      // Slightly lighter Indigo for better visibility on dark
+  primaryLight: '#818CF8',
+  primaryDark: '#4338CA',
 
   // Accent Colors
-  accent: '#1E3A5F',
-  accentLight: '#2A4A70',
+  accent: '#1E293B',       // Slate-800
+  accentLight: '#334155',  // Slate-700
 
-  // Neon Colors (for animations)
-  neonPurple: CURRENT_PRIMARY.neon,
-  neonGreen: '#00FF88',
-  neonBlue: '#00D4FF',
+  // Neon Colors (Glow effects)
+  neonPurple: '#A78BFA',
+  neonGreen: '#34D399',    // Glowing Emerald
+  neonBlue: '#38BDF8',     // Glowing Cyan
 
-  // Background Colors (Dark) - Professional Neutral Grays
-  background: '#121212',
-  surface: '#1E1E2D',
-  surfaceLight: '#2C2C3E',
-  surfaceHighlight: '#3A3A4E',
+  // Background Colors - "Midnight Slate" Palette (Not basic black)
+  background: '#0B1121',   // Very deep blue-black (Rich feel)
+  surface: '#151F32',      // Slightly lighter blue-black for cards
+  surfaceLight: '#1E293B', // Secondary surface
+  surfaceHighlight: '#334155', // Borders
 
   // Terminal/Card Colors
-  terminalBg: '#121212',
-  terminalHeader: '#1E1E2D',
-  terminalBorder: '#2C2C3E',
-  cardBg: '#1E1E2D',
+  terminalBg: '#0F172A',     // Slate-900
+  terminalHeader: '#020617', // Slate-950
+  terminalBorder: '#1E293B',
+  cardBg: '#151F32',
 
   // Text Colors
-  text: '#FFFFFF',
-  textSecondary: '#A0A0B0',
-  textLight: '#707080',
+  text: '#F8FAFC',         // Slate-50 (White-ish)
+  textSecondary: '#94A3B8', // Slate-400 (Readable Gray)
+  textLight: '#64748B',    // Slate-500 (Subtle)
   textOnPrimary: '#FFFFFF',
 
-  // Status Colors
-  success: '#00FF88',
-  successLight: '#00FF8820',
-  successMuted: '#238636',
-  warning: '#F0B429',
-  warningLight: '#F0B42920',
-  error: '#FF4757',
-  errorLight: '#FF475720',
-  errorMuted: '#DA3633',
-  info: '#38BDF8',
-  infoLight: '#38BDF820',
+  // Financial Status Colors (Desaturated for Dark Mode)
+  success: '#34D399',      // Lighter Green for readability
+  successLight: 'rgba(16, 185, 129, 0.15)',
+  successMuted: '#065F46',
+  
+  warning: '#FBBF24',      // Lighter Amber
+  warningLight: 'rgba(245, 158, 11, 0.15)',
+  
+  error: '#F87171',        // Lighter Red
+  errorLight: 'rgba(239, 68, 68, 0.15)',
+  errorMuted: '#7F1D1D',
+  
+  info: '#60A5FA',
+  infoLight: 'rgba(59, 130, 246, 0.15)',
 
-  // Trading Colors
-  buy: '#00FF88',
-  sell: '#FF4757',
+  // Dedicated Trading Actions
+  buy: '#34D399',
+  sell: '#F87171',
 
-  // Utility Colors
-  border: 'rgba(255, 255, 255, 0.08)',
-  divider: 'rgba(255, 255, 255, 0.06)',
-  disabled: '#484F58',
-  overlay: 'rgba(0, 0, 0, 0.7)',
+  // Utility
+  border: 'rgba(148, 163, 184, 0.1)', // Very subtle borders
+  divider: 'rgba(148, 163, 184, 0.05)',
+  disabled: '#334155',
+  overlay: 'rgba(0, 0, 0, 0.8)',
   white: '#FFFFFF',
   black: '#000000',
 
-  // Traffic Light Colors
+  // macOS Window Controls
   trafficRed: '#FF5F57',
   trafficYellow: '#FFBD2E',
   trafficGreen: '#28CA42',
 
-  // Status Bar
   statusBar: 'light-content' as const,
 };
 
-// Type for colors
 export type ThemeColors = typeof LIGHT_COLORS;
 
 // ===========================================
-// SPACING - Consistent spacing scale
+// SPACING & TYPOGRAPHY (Unchanged)
 // ===========================================
 
 export const SPACING = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
-  '4xl': 40,
-  '5xl': 48,
+  xs: 4, sm: 8, md: 12, lg: 16, xl: 20, '2xl': 24, '3xl': 32, '4xl': 40, '5xl': 48,
 };
-
-// ===========================================
-// TYPOGRAPHY - Font sizes and weights
-// ===========================================
 
 export const TYPOGRAPHY = {
-  xs: 10,
-  sm: 12,
-  base: 14,
-  md: 16,
-  lg: 18,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 28,
-  '4xl': 32,
-  '5xl': 40,
-  '6xl': 48,
-  '7xl': 56,
-
-  light: '300' as const,
-  regular: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  extrabold: '800' as const,
-
-  tight: 1.2,
-  normal: 1.5,
-  relaxed: 1.75,
+  xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 28, '4xl': 32, '5xl': 40, '6xl': 48, '7xl': 56,
+  light: '300' as const, regular: '400' as const, medium: '500' as const, semibold: '600' as const, bold: '700' as const, extrabold: '800' as const,
+  tight: 1.2, normal: 1.5, relaxed: 1.75,
 };
-
-// ===========================================
-// BORDER RADIUS
-// ===========================================
 
 export const RADIUS = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 28,
-  full: 999,
+  sm: 8, md: 12, lg: 16, xl: 20, '2xl': 24, '3xl': 28, full: 999,
 };
 
 // ===========================================
-// SHADOWS
+// SHADOWS (Refined for depth)
 // ===========================================
 
 export const SHADOWS = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05, // Lighter
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 }, // Deeper drop
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
   },
   primaryGlow: {
     shadowColor: CURRENT_PRIMARY.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
 };
 
 // ===========================================
-// REACT NATIVE PAPER THEMES
+// REACT NATIVE PAPER THEMES (Mapped)
 // ===========================================
 
 export const lightPaperTheme = {
@@ -312,19 +236,23 @@ export const lightPaperTheme = {
   colors: {
     ...MD3LightTheme.colors,
     primary: LIGHT_COLORS.primary,
-    primaryContainer: LIGHT_COLORS.accentLight,
+    primaryContainer: LIGHT_COLORS.accent,
     secondary: LIGHT_COLORS.primaryLight,
-    secondaryContainer: LIGHT_COLORS.surfaceLight,
     surface: LIGHT_COLORS.surface,
     surfaceVariant: LIGHT_COLORS.surfaceLight,
     background: LIGHT_COLORS.background,
     error: LIGHT_COLORS.error,
-    errorContainer: LIGHT_COLORS.errorLight,
     onPrimary: LIGHT_COLORS.textOnPrimary,
-    onSecondary: LIGHT_COLORS.textOnPrimary,
-    onBackground: LIGHT_COLORS.text,
     onSurface: LIGHT_COLORS.text,
     outline: LIGHT_COLORS.border,
+    elevation: {
+        level0: 'transparent',
+        level1: LIGHT_COLORS.surface,
+        level2: LIGHT_COLORS.surface,
+        level3: LIGHT_COLORS.surface,
+        level4: LIGHT_COLORS.surface,
+        level5: LIGHT_COLORS.surface,
+    }
   },
   roundness: RADIUS.md,
 };
@@ -334,19 +262,23 @@ export const darkPaperTheme = {
   colors: {
     ...MD3DarkTheme.colors,
     primary: DARK_COLORS.primary,
-    primaryContainer: DARK_COLORS.accentLight,
+    primaryContainer: DARK_COLORS.accent,
     secondary: DARK_COLORS.primaryLight,
-    secondaryContainer: DARK_COLORS.surfaceLight,
     surface: DARK_COLORS.surface,
     surfaceVariant: DARK_COLORS.surfaceLight,
     background: DARK_COLORS.background,
     error: DARK_COLORS.error,
-    errorContainer: DARK_COLORS.errorLight,
     onPrimary: DARK_COLORS.textOnPrimary,
-    onSecondary: DARK_COLORS.textOnPrimary,
-    onBackground: DARK_COLORS.text,
     onSurface: DARK_COLORS.text,
     outline: DARK_COLORS.border,
+    elevation: {
+        level0: 'transparent',
+        level1: DARK_COLORS.surface,
+        level2: DARK_COLORS.surface,
+        level3: DARK_COLORS.surface,
+        level4: DARK_COLORS.surface,
+        level5: DARK_COLORS.surface,
+    }
   },
   roundness: RADIUS.md,
 };
@@ -365,30 +297,17 @@ export const FONTS = {
   mono: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
 };
 
-// ===========================================
-// ANIMATION DURATIONS
-// ===========================================
-
 export const ANIMATION = {
-  fast: 200,
-  normal: 400,
-  slow: 600,
-  slower: 800,
-  slowest: 1000,
+  fast: 200, normal: 400, slow: 600, slower: 800, slowest: 1000,
 };
 
-// ===========================================
-// BACKWARDS COMPATIBILITY - Default export
-// ===========================================
-
-// For backwards compatibility, export COLORS as alias to LIGHT_COLORS
-// This will be overridden by ThemeContext in actual usage
+// Backward Compatibility Aliases
 export const COLORS = LIGHT_COLORS;
-export const Colors = LIGHT_COLORS; // Legacy alias
-export const Spacing = SPACING;       // Legacy alias
-export const Typography = TYPOGRAPHY; // Legacy alias
-export const BorderRadius = RADIUS;   // Legacy alias
-export const Shadows = SHADOWS;       // Legacy alias
+export const Colors = LIGHT_COLORS;
+export const Spacing = SPACING;
+export const Typography = TYPOGRAPHY;
+export const BorderRadius = RADIUS;
+export const Shadows = SHADOWS;
 export const paperTheme = lightPaperTheme;
 
 export default {

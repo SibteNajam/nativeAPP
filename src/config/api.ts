@@ -14,7 +14,7 @@ if (!__DEV__ && !API_URL) {
 
 export const apiConfig = {
   // REST API Base URL
-  baseURL: API_URL || 'http://localhost:3000/api',
+  baseURL: API_URL || 'https://backend-production-6851.up.railway.app',
   
   // WebSocket URL
   wsURL: WS_URL || 'ws://localhost:3000',

@@ -11,13 +11,72 @@ import { router } from 'expo-router';
 import { Button, Surface, Chip, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView, AnimatePresence } from 'moti';
-import { Easing } from 'react-native-reanimated';
+import Animated, { 
+    useSharedValue, 
+    useAnimatedProps, 
+    withTiming, 
+    withDelay,
+    Easing 
+} from 'react-native-reanimated';
 import { useFonts, Poppins_700Bold, Poppins_800ExtraBold, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
-import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
 
 // Import theme hook
 import { useTheme } from '@/contexts/ThemeContext';
+
+// Create animated Path component for stroke animation
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Animated Border Path Component
+const AnimatedBorderPath = ({ 
+    d, 
+    stroke, 
+    strokeWidth, 
+    length,
+    delay = 0,
+    duration = 2000 
+}: { 
+    d: string; 
+    stroke: string; 
+    strokeWidth: number;
+    length: number;
+    delay?: number;
+    duration?: number;
+}) => {
+    const progress = useSharedValue(0);
+
+    useEffect(() => {
+        // Reset to 0 ensures animation replays correctly if component remounts
+        progress.value = 0; 
+        progress.value = withDelay(
+            delay,
+            withTiming(1, {
+                duration: duration,
+                easing: Easing.inOut(Easing.ease),
+            })
+        );
+    }, [delay, duration, length]); // Added dependencies
+
+    const animatedProps = useAnimatedProps(() => ({
+        // We calculate the offset on the UI thread
+        strokeDashoffset: length * (1 - progress.value),
+    }));
+
+    return (
+        <AnimatedPath
+            d={d}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            // FIX: Pass this as a static prop, not inside animatedProps
+            strokeDasharray={[length, length]} 
+            animatedProps={animatedProps}
+        />
+    );
+};
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -82,6 +141,9 @@ export default function WelcomeScreen() {
         Inter_500Medium,
         Inter_600SemiBold,
     });
+
+    // Terminal card border animation dimensions
+    const [terminalDimensions, setTerminalDimensions] = useState({ width: 0, height: 0 });
 
     // Trading scenarios with dynamic colors - realistic profits
     const TRADING_SCENARIOS = [
@@ -245,99 +307,183 @@ export default function WelcomeScreen() {
                     </View>
                 </View>
 
-                {/* macOS Terminal Card */}
-                <MotiView
-                    from={{ opacity: 0, translateY: 40 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 800, delay: 1500 }}
-                    style={styles.terminalContainer}
-                >
-                    <Surface 
-                        style={[
-                            styles.terminalCard, 
-                            { 
-                                backgroundColor: isDark ? colors.terminalBg : '#F8F9FA',
+                {/* macOS Terminal Card with Animated Border */}
+                <View style={styles.terminalContainer}>
+                    <View 
+                        style={styles.animatedBorderWrapper}
+                        onLayout={(e) => {
+                            const { width, height } = e.nativeEvent.layout;
+                            // Only update if dimensions actually changed to prevent loops
+                            if (width !== terminalDimensions.width) {
+                                setTerminalDimensions({ width, height });
                             }
-                        ]} 
-                        elevation={isDark ? 4 : 2}
+                        }}
                     >
-                        <View style={[
-                            styles.titleBar, 
-                            { backgroundColor: isDark ? colors.terminalHeader : '#E9ECEF' }
-                        ]}>
-                            <View style={styles.trafficLights}>
-                                <View style={[styles.trafficLight, { backgroundColor: colors.trafficRed }]} />
-                                <View style={[styles.trafficLight, { backgroundColor: colors.trafficYellow }]} />
-                                <View style={[styles.trafficLight, { backgroundColor: colors.trafficGreen }]} />
-                            </View>
-                            <Text style={[styles.titleBarText, { color: isDark ? colors.textLight : '#495057' }]}>TradeBot Terminal</Text>
-                            <View style={styles.liveIndicator}>
-                                <MotiView
-                                    from={{ scale: 1, opacity: 0.8 }}
-                                    animate={{ scale: 2.5, opacity: 0 }}
-                                    transition={{ type: 'timing', duration: 1500, loop: true }}
-                                    style={[styles.livePulse, { backgroundColor: colors.primary }]}
-                                />
-                                <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-                                <Text style={[styles.liveText, { color: colors.primary }]}> LIVE</Text>
-                            </View>
-                        </View>
+                        {/* Animated SVG Border Overlay */}
+                        {terminalDimensions.width > 0 && (
+                            <Svg
+                                width={terminalDimensions.width}
+                                height={terminalDimensions.height}
+                                style={StyleSheet.absoluteFill}
+                            >
+                                <Defs>
+                                    <SvgLinearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <Stop offset="0%" stopColor={isDark ? '#06b6d4' : '#3b82f6'} />
+                                        <Stop offset="100%" stopColor={isDark ? '#d946ef' : '#8b5cf6'} />
+                                    </SvgLinearGradient>
+                                </Defs>
 
-                        <View style={styles.terminalContent}>
-                            <View style={[
-                                styles.terminalHeader, 
-                                { borderBottomColor: isDark ? colors.terminalBorder : '#DEE2E6' }
-                            ]}>
-                                <MaterialCommunityIcons name="connection" size={14} color={colors.primaryLight} />
-                                <Text style={[
-                                    styles.terminalHeaderText, 
-                                    { color: isDark ? colors.textLight : '#6C757D' }
-                                ]}>Connected to Binance API</Text>
-                            </View>
+                                {(() => {
+                                    const W = terminalDimensions.width;
+                                    const H = terminalDimensions.height;
+                                    const R = 16; // Corner Radius
+                                    const S = 4;  // Stroke Width
+                                    const O = S / 2; // Offset (2px)
+                                    
+                                    // Quarter circle arc length = (2 * pi * R) / 4
+                                    const ARC_LEN = (Math.PI * R) / 2;
 
-                            <View style={styles.terminalLines}>
-                                {visibleLines.map((lineIndex) => {
-                                    const signal = currentScenario[lineIndex];
+                                    // Horizontal Straight Line Length: (Width) - (2 * (Radius + Offset))
+                                    const HORIZ_LINE = W - 2 * (R + O);
+                                    // Vertical Straight Line Length: (Height) - (2 * (Radius + Offset))
+                                    const VERT_LINE = H - 2 * (R + O);
+
+                                    // Total Path Length calculation
+                                    // Note: The visual path includes 2 straight lines and 2 corners
+                                    const TOTAL_LEN = HORIZ_LINE + VERT_LINE + (2 * ARC_LEN);
+                                    
+                                    // PATH 1: Top -> Right -> Bottom-Right
+                                    const d1 = `
+                                        M ${R + O} ${O}
+                                        L ${W - R - O} ${O}
+                                        A ${R} ${R} 0 0 1 ${W - O} ${R + O}
+                                        L ${W - O} ${H - R - O}
+                                        A ${R} ${R} 0 0 1 ${W - R - O} ${H - O}
+                                    `;
+
+                                    // PATH 2: Top-Left -> Left -> Bottom -> Bottom-Right
+                                    const d2 = `
+                                        M ${R + O} ${O}
+                                        A ${R} ${R} 0 0 0 ${O} ${R + O}
+                                        L ${O} ${H - R - O}
+                                        A ${R} ${R} 0 0 0 ${R + O} ${H - O}
+                                        L ${W - R - O} ${H - O}
+                                    `;
+
                                     return (
-                                        <MotiView
-                                            key={`${scenarioIndex}-${lineIndex}`}
-                                            from={{ opacity: 0, translateX: -15 }}
-                                            animate={{ opacity: 1, translateX: 0 }}
-                                            transition={{ type: 'timing', duration: 500 }}
-                                            style={styles.terminalLine}
-                                        >
-                                            <View style={[
-                                                styles.lineIcon, 
-                                                { backgroundColor: `${signal.iconColor}${isDark ? '20' : '15'}` }
-                                            ]}>
-                                                <MaterialCommunityIcons name={signal.icon as any} size={16} color={signal.iconColor} />
-                                            </View>
-                                            <Text style={[
-                                                styles.lineText, 
-                                                { color: isDark ? colors.text : '#343A40' }
-                                            ]}>{signal.text}</Text>
-                                            {signal.profit && (
-                                                <View style={[styles.profitBadge, { backgroundColor: colors.success }]}>
-                                                    <Text style={[styles.profitText, { color: colors.textOnPrimary }]}>{signal.profit}</Text>
-                                                </View>
-                                            )}
-                                        </MotiView>
+                                        <>
+                                            {/* Path 1: Clockwise to Bottom-Right */}
+                                            <AnimatedBorderPath
+                                                d={d1}
+                                                stroke="url(#borderGradient)"
+                                                strokeWidth={S}
+                                                length={TOTAL_LEN}
+                                                delay={500}
+                                                duration={2000}
+                                            />
+
+                                            {/* Path 2: Counter-Clockwise to Bottom-Right */}
+                                            <AnimatedBorderPath
+                                                d={d2}
+                                                stroke="url(#borderGradient)"
+                                                strokeWidth={S}
+                                                length={TOTAL_LEN}
+                                                delay={500}
+                                                duration={2000}
+                                            />
+                                        </>
                                     );
-                                })}
+                                })()}
+                            </Svg>
+                        )}
+
+                        <Surface 
+                            style={[
+                                styles.terminalCard, 
+                                { 
+                                    backgroundColor: isDark ? colors.terminalBg : '#F8F9FA',
+                                }
+                            ]} 
+                            elevation={isDark ? 4 : 2}
+                        >
+                            <View style={[
+                                styles.titleBar, 
+                                { backgroundColor: isDark ? colors.terminalHeader : '#E9ECEF' }
+                            ]}>
+                                <View style={styles.trafficLights}>
+                                    <View style={[styles.trafficLight, { backgroundColor: colors.trafficRed }]} />
+                                    <View style={[styles.trafficLight, { backgroundColor: colors.trafficYellow }]} />
+                                    <View style={[styles.trafficLight, { backgroundColor: colors.trafficGreen }]} />
+                                </View>
+                                <Text style={[styles.titleBarText, { color: isDark ? colors.textLight : '#495057' }]}>TradeBot Terminal</Text>
+                                <View style={styles.liveIndicator}>
+                                    <MotiView
+                                        from={{ scale: 1, opacity: 0.8 }}
+                                        animate={{ scale: 2.5, opacity: 0 }}
+                                        transition={{ type: 'timing', duration: 1500, loop: true }}
+                                        style={[styles.livePulse, { backgroundColor: colors.primary }]}
+                                    />
+                                    <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
+                                    <Text style={[styles.liveText, { color: colors.primary }]}> LIVE</Text>
+                                </View>
                             </View>
 
-                            <View style={styles.inputLine}>
-                                <Text style={[styles.promptText, { color: colors.primaryLight }]}>❯</Text>
-                                <MotiView
-                                    from={{ opacity: 0.3 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ type: 'timing', duration: 800, loop: true, repeatReverse: true }}
-                                    style={[styles.cursorBlock, { backgroundColor: colors.primaryLight }]}
-                                />
+                            <View style={styles.terminalContent}>
+                                <View style={[
+                                    styles.terminalHeader, 
+                                    { borderBottomColor: isDark ? colors.terminalBorder : '#DEE2E6' }
+                                ]}>
+                                    <MaterialCommunityIcons name="connection" size={14} color={colors.primaryLight} />
+                                    <Text style={[
+                                        styles.terminalHeaderText, 
+                                        { color: isDark ? colors.textLight : '#6C757D' }
+                                    ]}>Connected to Binance API</Text>
+                                </View>
+
+                                <View style={styles.terminalLines}>
+                                    {visibleLines.map((lineIndex) => {
+                                        const signal = currentScenario[lineIndex];
+                                        return (
+                                            <MotiView
+                                                key={`${scenarioIndex}-${lineIndex}`}
+                                                from={{ opacity: 0, translateX: -15 }}
+                                                animate={{ opacity: 1, translateX: 0 }}
+                                                transition={{ type: 'timing', duration: 500 }}
+                                                style={styles.terminalLine}
+                                            >
+                                                <View style={[
+                                                    styles.lineIcon, 
+                                                    { backgroundColor: `${signal.iconColor}${isDark ? '20' : '15'}` }
+                                                ]}>
+                                                    <MaterialCommunityIcons name={signal.icon as any} size={16} color={signal.iconColor} />
+                                                </View>
+                                                <Text style={[
+                                                    styles.lineText, 
+                                                    { color: isDark ? colors.text : '#343A40' }
+                                                ]}>{signal.text}</Text>
+                                                {signal.profit && (
+                                                    <View style={[styles.profitBadge, { backgroundColor: colors.success }]}>
+                                                        <Text style={[styles.profitText, { color: colors.textOnPrimary }]}>{signal.profit}</Text>
+                                                    </View>
+                                                )}
+                                            </MotiView>
+                                        );
+                                    })}
+                                </View>
+
+                                <View style={styles.inputLine}>
+                                    <Text style={[styles.promptText, { color: colors.primaryLight }]}>❯</Text>
+                                    <MotiView
+                                        from={{ opacity: 0.3 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ type: 'timing', duration: 800, loop: true, repeatReverse: true }}
+                                        style={[styles.cursorBlock, { backgroundColor: colors.primaryLight }]}
+                                    />
+                                </View>
                             </View>
-                        </View>
-                    </Surface>
-                </MotiView>
+                        </Surface>
+                    </View>
+                </View>
 
                 {/* Feature Chips */}
                 <MotiView
@@ -568,8 +714,13 @@ const styles = StyleSheet.create({
         position: 'relative',
         marginBottom: 24,
     },
+    animatedBorderWrapper: {
+        position: 'relative',
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
     terminalCard: {
-        borderRadius: 20,
+        borderRadius: 16,
         overflow: 'hidden',
     },
     titleBar: {
