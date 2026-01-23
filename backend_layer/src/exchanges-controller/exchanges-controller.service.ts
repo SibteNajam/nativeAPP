@@ -2477,6 +2477,25 @@ export class ExchangesControllerService {
       // Only get entry orders from the CURRENT trade (after the last full exit)
       const openEntries: any[] = [];
 
+      // =========================================================================
+      // JAN 21, 2026 CRITICAL FIX: All exit order roles that SLTP uses
+      // =========================================================================
+      // BUG: Previously only looked for orderRole='EXIT', but SLTP webhook uses:
+      //   - TP1, TP2, SL, TRAIL_SL, TIME_EXIT, SLTP_EXIT, EMERGENCY
+      // This caused 72 "open entry orders" when only 1 actual position exists!
+      // =========================================================================
+      const exitOrderRoles = [
+        'EXIT',        // Generic exit role
+        'TP1',         // Take profit 1
+        'TP2',         // Take profit 2 (full exit)
+        'SL',          // Stop loss
+        'TRAIL_SL',    // Trailing stop loss
+        'TIME_EXIT',   // Time-based exit
+        'SLTP_EXIT',   // Generic SLTP exit
+        'EMERGENCY',   // Emergency exit
+        'MANUAL_SELL', // Manual sell by user
+      ];
+
       for (const [symbol, latestEntryTime] of latestEntryBySymbol) {
         // Find the last FULL EXIT for this symbol (if any)
         // A full exit is when we sold everything after a buy
@@ -2484,7 +2503,7 @@ export class ExchangesControllerService {
           .createQueryBuilder('exit')
           .where('exit.exchange = :exchange', { exchange: exchange.toUpperCase() })
           .andWhere('exit.symbol = :symbol', { symbol })
-          .andWhere('exit.orderRole = :role', { role: 'EXIT' })
+          .andWhere('exit.orderRole IN (:...roles)', { roles: exitOrderRoles })
           .andWhere('exit.status = :status', { status: 'FILLED' })
           .andWhere('exit.side = :side', { side: 'SELL' })
           .orderBy('exit.filledTimestamp', 'DESC')
@@ -2515,11 +2534,12 @@ export class ExchangesControllerService {
           .getMany();
 
         // Get exit orders AFTER the trade boundary too
+        // FIXED: Use all exit order roles, not just 'EXIT'
         let exitQuery = this.orderRepository
           .createQueryBuilder('exit')
           .where('exit.exchange = :exchange', { exchange: exchange.toUpperCase() })
           .andWhere('exit.symbol = :symbol', { symbol })
-          .andWhere('exit.orderRole = :role', { role: 'EXIT' })
+          .andWhere('exit.orderRole IN (:...roles)', { roles: exitOrderRoles })
           .andWhere('exit.status = :status', { status: 'FILLED' })
           .andWhere('exit.side = :side', { side: 'SELL' });
 
@@ -2547,6 +2567,15 @@ export class ExchangesControllerService {
 
         const remainingQty = totalEntryQty - totalExitQty;
 
+        // JAN 21, 2026: Enhanced logging for debugging reconciliation
+        if (currentTradeExits.length > 0 || totalExitQty > 0) {
+          this.logger.log(
+            `📊 [RECONCILE] ${symbol}: entries=${currentTradeEntries.length} (${totalEntryQty.toFixed(4)}), ` +
+            `exits=${currentTradeExits.length} (${totalExitQty.toFixed(4)}), remaining=${remainingQty.toFixed(4)}, ` +
+            `boundary=${tradeBoundary?.toISOString() || 'none'}, exitRoles=[${currentTradeExits.map(e => e.orderRole).join(',')}]`
+          );
+        }
+
         if (remainingQty > 0.000001 && latestEntry) {
           openEntries.push({
             symbol: latestEntry.symbol,
@@ -2565,6 +2594,9 @@ export class ExchangesControllerService {
             _current_trade_entries: currentTradeEntries.length,
             _current_trade_exits: currentTradeExits.length
           });
+        } else if (remainingQty <= 0.000001 && currentTradeExits.length > 0) {
+          // Position is FULLY CLOSED - not an open entry order
+          this.logger.log(`✅ [RECONCILE] ${symbol}: Position FULLY CLOSED (exits cover all entries) - not included in open orders`);
         }
       }
 

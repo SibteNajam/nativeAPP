@@ -147,14 +147,22 @@ export class SltpWebhookService {
                 }
 
                 // =========================================================================
-                // WARMUP PERIOD CHECK (Jan 2026 - Prevent Premature Exits)
+                // FIX B: UNIFIED WARMUP/MIN-HOLD POLICY (Jan 2026)
                 // =========================================================================
-                // Skip exits for positions opened < 30 minutes ago to prevent:
-                // 1. Entry slippage triggering immediate SL
-                // 2. Noise/spread triggering false TP
-                // 3. Bot churn from rapid entry-exit cycles
+                // Synchronize with Python's min-hold time (60 minutes by default).
+                // Previously: Backend used 30min HARDCODED while Python used 60min
+                // Now: Both use SLTP_MIN_HOLD_TIME env var (default 60 minutes)
+                //
+                // ALLOWED TRIGGERS DURING WARMUP (bypass warmup check):
+                // - EMERGENCY_SL (hard stop at -8%)
+                // - EMERGENCY_TP (windfall profit +10%/+15%)
+                // - HARD_STOP (synonym for emergency SL)
                 // =========================================================================
-                const WARMUP_PERIOD_MS = 30 * 60 * 1000; // 30 minutes - ENABLED
+                const MIN_HOLD_TIME_MINUTES = parseInt(process.env.SLTP_MIN_HOLD_TIME || '60', 10);
+                const MIN_HOLD_TIME_MS = MIN_HOLD_TIME_MINUTES * 60 * 1000;
+                
+                // Triggers that bypass min-hold (emergency exits)
+                const WARMUP_BYPASS_TRIGGERS = ['EMERGENCY_SL', 'EMERGENCY_TP', 'HARD_STOP'];
 
                 // Find the latest FILLED ENTRY order for this user/symbol
                 const entryOrder = await this.orderRepository.findOne({
@@ -171,13 +179,27 @@ export class SltpWebhookService {
 
                 if (entryOrder && entryOrder.filledTimestamp) {
                     const timeSinceEntry = Date.now() - entryOrder.filledTimestamp.getTime();
-                    if (timeSinceEntry < WARMUP_PERIOD_MS) {
-                        const minutesRemaining = Math.ceil((WARMUP_PERIOD_MS - timeSinceEntry) / 60000);
+                    
+                    // FIX B: Check if this is an emergency trigger that bypasses min-hold
+                    const isEmergencyTrigger = WARMUP_BYPASS_TRIGGERS.includes(trigger.trigger_type);
+                    
+                    if (timeSinceEntry < MIN_HOLD_TIME_MS && !isEmergencyTrigger) {
+                        const minutesRemaining = Math.ceil((MIN_HOLD_TIME_MS - timeSinceEntry) / 60000);
+                        const minutesSinceEntry = Math.floor(timeSinceEntry / 60000);
                         this.logger.log(
-                            `${userLabel} ⏰ WARMUP PERIOD: Position opened ${Math.floor(timeSinceEntry / 60000)} min ago. ` +
-                            `Skipping ${trigger.trigger_type} (need ${minutesRemaining} more min)`
+                            `${userLabel} ⏰ MIN HOLD (FIX B): Position opened ${minutesSinceEntry} min ago. ` +
+                            `Skipping ${trigger.trigger_type} (need ${minutesRemaining} more min). ` +
+                            `Emergency triggers (${WARMUP_BYPASS_TRIGGERS.join(', ')}) still allowed.`
                         );
-                        return { userId: cred.userId, exchange: cred.exchange, success: true, skipped: true, reason: 'warmup_period' };
+                        return { userId: cred.userId, exchange: cred.exchange, success: true, skipped: true, reason: 'min_hold_period' };
+                    }
+                    
+                    // Log bypass for emergency triggers
+                    if (timeSinceEntry < MIN_HOLD_TIME_MS && isEmergencyTrigger) {
+                        this.logger.log(
+                            `${userLabel} 🚨 EMERGENCY BYPASS: ${trigger.trigger_type} allowed during min-hold ` +
+                            `(${Math.floor(timeSinceEntry / 60000)}/${MIN_HOLD_TIME_MINUTES} min)`
+                        );
                     }
 
                     // =========================================================================

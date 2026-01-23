@@ -98,7 +98,7 @@ export class AuthController {
     // Send login notification email (non-blocking)
     this.emailService.sendLoginNotification(
       user.email, 
-      user.name  || 'User',
+      user.name || 'User',
       ipAddress,
       device,
       'Unknown' // Location - you can add geolocation service later
