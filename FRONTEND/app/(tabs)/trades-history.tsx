@@ -172,13 +172,19 @@ export default function TradesHistoryScreen() {
       symbolStats[symbol].pnl += trade.pnl.total;
     });
 
-    // Activity by hour
+    // Activity by hour - ALL TRADES (completed + active)
+    // This shows the full picture including unrealized PnL from open positions
     const hourlyActivity: { [hour: number]: { wins: number; losses: number } } = {};
     for (let i = 0; i < 24; i++) hourlyActivity[i] = { wins: 0, losses: 0 };
-    completed.forEach(trade => {
+    filteredByPeriod.forEach(trade => {
       const hour = new Date(trade.entryOrder.createdAt).getHours();
-      if (trade.pnl.realized > 0) hourlyActivity[hour].wins++;
-      else hourlyActivity[hour].losses++;
+
+      // Use realized PnL for completed trades, unrealized for active trades
+      const pnl = trade.pnl.isComplete ? trade.pnl.realized : trade.pnl.unrealized;
+
+      if (pnl > 0) hourlyActivity[hour].wins++;
+      else if (pnl < 0) hourlyActivity[hour].losses++;
+      // Note: trades with exactly 0 PnL are not counted (neutral)
     });
 
     return {
@@ -898,7 +904,7 @@ function AnalyticsContent({ analytics, colors, isDark, timePeriod }: {
             </View>
           </View>
           <Text style={[styles.chartSubtitle, { color: colors.textSecondary }]}>
-            Activity heatmap by hour
+            Activity heatmap by hour • {analytics.totalTrades} trades (all positions)
           </Text>
 
           {/* Hour Blocks Grid */}
