@@ -22,8 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.byteboom.ai",
-      "usesCleartextTraffic": true
+      "package": "com.byteboom.ai"
     },
     "web": {
       "output": "static",
