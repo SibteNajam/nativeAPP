@@ -2,6 +2,8 @@
  * Trading Bot Card Component
  * Interactive power-button style activation
  * Dynamic animated visuals when bot is active
+ * 
+ * OPTIMIZED: Uses Zustand store for trades data (no duplicate API calls)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -28,13 +30,15 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '@/contexts/ThemeContext';
+import { FONTS } from '@/constants/fonts';
 import { useExchange } from '@/contexts/ExchangeContext';
-import { useCredentials } from '@/hooks/useCredentials';
+import { useCredentialsStore } from '@/store/credentialsStore';
 import { getExchangeInfo } from '@/types/exchange.types';
 import BotSelectionModal from './BotSelectionModal';
-import { getBotTrades } from '@/services/api/trades.api';
-import type { TradesResponse } from '@/types/trades.types';
 import { useRouter } from 'expo-router';
+
+// Use centralized Zustand store instead of local API calls
+import { useTodayPnL, useTodayTradesCount } from '@/store/tradesStore';
 
 type BotStatus = 'idle' | 'activating' | 'active' | 'deactivating';
 
@@ -47,14 +51,16 @@ const SELECTED_BOT_KEY = '@selected_trading_bot';
 export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) {
     const { colors, isDark } = useTheme();
     const { selectedExchange, selectedCredential, refreshExchanges } = useExchange();
-    const { toggleCredential } = useCredentials();
+    const toggleCredential = useCredentialsStore((state) => state.toggleCredential);
     const router = useRouter();
 
     const [botStatus, setBotStatus] = useState<BotStatus>('idle');
     const [showBotModal, setShowBotModal] = useState(false);
     const [selectedBot, setSelectedBot] = useState<{ id: string; name: string } | null>(null);
-    const [todayPnL, setTodayPnL] = useState<number>(0);
-    const [todayTrades, setTodayTrades] = useState<number>(0);
+
+    // Use Zustand store selectors for today's stats (shared data, no duplicate API calls)
+    const todayPnL = useTodayPnL();
+    const todayTrades = useTodayTradesCount();
 
     // Load selected bot from storage
     useEffect(() => {
@@ -94,45 +100,8 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
         }
     }, [selectedCredential?.activeTrading, selectedExchange]);
 
-    // Fetch trades data and calculate today's stats
-    useEffect(() => {
-        if (!selectedExchange || botStatus !== 'active') {
-            setTodayPnL(0);
-            setTodayTrades(0);
-            return;
-        }
-
-        const fetchTodayStats = async () => {
-            try {
-                const response = await getBotTrades(selectedExchange);
-                if (response.status === 'Success') {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    // Filter trades completed today
-                    const todayCompletedTrades = response.data.trades.filter(trade => {
-                        if (!trade.pnl.isComplete || !trade.entryOrder.filledAt) return false;
-                        const tradeDate = new Date(trade.entryOrder.filledAt);
-                        tradeDate.setHours(0, 0, 0, 0);
-                        return tradeDate.getTime() === today.getTime();
-                    });
-
-                    // Calculate total PnL from today's completed trades
-                    const pnl = todayCompletedTrades.reduce((sum, trade) => sum + trade.pnl.realized, 0);
-                    
-                    setTodayPnL(pnl);
-                    setTodayTrades(todayCompletedTrades.length);
-                }
-            } catch (error) {
-                console.error('Failed to fetch today\'s stats:', error);
-            }
-        };
-
-        fetchTodayStats();
-        // Refresh every 30 seconds when active
-        const interval = setInterval(fetchTodayStats, 30000);
-        return () => clearInterval(interval);
-    }, [selectedExchange, botStatus]);
+    // NOTE: Trades data is now fetched centrally via useTradesStore in Dashboard
+    // This component simply consumes the data via selectors (useTodayPnL, useTodayTradesCount)
 
     // Idle state animations
     const ringScale = useSharedValue(1);
@@ -441,156 +410,159 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                             <MaterialCommunityIcons
                                 name={selectedBot.id === 'conservative-trader' ? 'shield-check' : 'lightning-bolt'}
                                 size={16}
-                                color={selectedBot.id === 'conservative-trader' ? '#10b981' : '#f59e0b'}
+                                color={selectedBot.id === 'conservative-trader' ? colors.success : colors.warning}
                             />
-                            <Text style={[styles.botIndicatorText, { color: colors.text }]}>
-                                Strategy: {selectedBot.name}
+                            <Text style={[styles.botIndicatorLabel, { color: colors.textSecondary }]}>
+                                Strategy:
+                            </Text>
+                            <Text style={[styles.botNameText, { color: colors.text, fontFamily: FONTS.display }]}>
+                                {selectedBot.name}
                             </Text>
                         </View>
                     )}
 
-                {/* Active Trading Animation Area */}
-                <View style={styles.activeContainer}>
-                    {/* Expanding pulse rings */}
-                    <Animated.View style={[
-                        styles.pulseRing,
-                        { borderColor: colors.primary },
-                        pulseRing1Style,
-                    ]} />
-                    <Animated.View style={[
-                        styles.pulseRing,
-                        { borderColor: colors.primaryLight },
-                        pulseRing2Style,
-                    ]} />
-                    <Animated.View style={[
-                        styles.pulseRing,
-                        { borderColor: colors.primary },
-                        pulseRing3Style,
-                    ]} />
+                    {/* Active Trading Animation Area */}
+                    <View style={styles.activeContainer}>
+                        {/* Expanding pulse rings */}
+                        <Animated.View style={[
+                            styles.pulseRing,
+                            { borderColor: colors.primary },
+                            pulseRing1Style,
+                        ]} />
+                        <Animated.View style={[
+                            styles.pulseRing,
+                            { borderColor: colors.primaryLight },
+                            pulseRing2Style,
+                        ]} />
+                        <Animated.View style={[
+                            styles.pulseRing,
+                            { borderColor: colors.primary },
+                            pulseRing3Style,
+                        ]} />
 
-                    {/* Signal waves emanating from robot */}
-                    <Animated.View style={[
-                        styles.signalWave,
-                        { backgroundColor: colors.primary },
-                        signalWave1Style,
-                    ]} />
-                    <Animated.View style={[
-                        styles.signalWave,
-                        { backgroundColor: colors.primaryLight },
-                        signalWave2Style,
-                    ]} />
-                    <Animated.View style={[
-                        styles.signalWave,
-                        { backgroundColor: colors.primary },
-                        signalWave3Style,
-                    ]} />
+                        {/* Signal waves emanating from robot */}
+                        <Animated.View style={[
+                            styles.signalWave,
+                            { backgroundColor: colors.primary },
+                            signalWave1Style,
+                        ]} />
+                        <Animated.View style={[
+                            styles.signalWave,
+                            { backgroundColor: colors.primaryLight },
+                            signalWave2Style,
+                        ]} />
+                        <Animated.View style={[
+                            styles.signalWave,
+                            { backgroundColor: colors.primary },
+                            signalWave3Style,
+                        ]} />
 
-                    {/* Central Robot Icon - bouncing */}
-                    <Animated.View style={[styles.robotContainer, robotStyle]}>
-                        <Pressable
-                            onPress={handleDeactivate}
-                            style={({ pressed }) => [
-                                styles.robotButton,
-                                {
-                                    backgroundColor: `${colors.primary}20`,
-                                    borderColor: colors.primary,
-                                    transform: [{ scale: pressed ? 0.95 : 1 }],
-                                },
-                            ]}
-                        >
-                            <View style={styles.robotInner}>
-                                <MaterialCommunityIcons
-                                    name="robot"
-                                    size={48}
-                                    color={colors.primary}
-                                />
-                                {/* Activity indicator dots */}
-                                <View style={styles.activityDots}>
-                                    <View style={[styles.dot, { backgroundColor: colors.primaryLight }]} />
-                                    <View style={[styles.dot, styles.dotActive, { backgroundColor: colors.primary }]} />
-                                    <View style={[styles.dot, { backgroundColor: colors.primaryLight }]} />
+                        {/* Central Robot Icon - bouncing */}
+                        <Animated.View style={[styles.robotContainer, robotStyle]}>
+                            <Pressable
+                                onPress={handleDeactivate}
+                                style={({ pressed }) => [
+                                    styles.robotButton,
+                                    {
+                                        backgroundColor: `${colors.primary}20`,
+                                        borderColor: colors.primary,
+                                        transform: [{ scale: pressed ? 0.95 : 1 }],
+                                    },
+                                ]}
+                            >
+                                <View style={styles.robotInner}>
+                                    <MaterialCommunityIcons
+                                        name="robot"
+                                        size={48}
+                                        color={colors.primary}
+                                    />
+                                    {/* Activity indicator dots */}
+                                    <View style={styles.activityDots}>
+                                        <View style={[styles.dot, { backgroundColor: colors.primaryLight }]} />
+                                        <View style={[styles.dot, styles.dotActive, { backgroundColor: colors.primary }]} />
+                                        <View style={[styles.dot, { backgroundColor: colors.primaryLight }]} />
+                                    </View>
                                 </View>
-                            </View>
-                        </Pressable>
-                    </Animated.View>
+                            </Pressable>
+                        </Animated.View>
 
-                    {/* Floating icons around robot */}
-                    <View style={[styles.floatingIcon, styles.floatingIcon1, { backgroundColor: `${colors.primary}1A` }]}>
-                        <MaterialCommunityIcons name="chart-line-variant" size={20} color={colors.primary} />
+                        {/* Floating icons around robot */}
+                        <View style={[styles.floatingIcon, styles.floatingIcon1, { backgroundColor: `${colors.primary}1A` }]}>
+                            <MaterialCommunityIcons name="chart-line-variant" size={20} color={colors.primary} />
+                        </View>
+                        <View style={[styles.floatingIcon, styles.floatingIcon2, { backgroundColor: `${colors.primary}1A` }]}>
+                            <MaterialCommunityIcons name="swap-horizontal-bold" size={20} color={colors.primaryLight} />
+                        </View>
+                        <View style={[styles.floatingIcon, styles.floatingIcon3, { backgroundColor: `${colors.primary}1A` }]}>
+                            <MaterialCommunityIcons name="currency-usd" size={20} color={colors.primary} />
+                        </View>
+                        <View style={[styles.floatingIcon, styles.floatingIcon4, { backgroundColor: `${colors.primary}1A` }]}>
+                            <MaterialCommunityIcons name="trending-up" size={20} color={colors.primaryLight} />
+                        </View>
                     </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon2, { backgroundColor: `${colors.primary}1A` }]}>
-                        <MaterialCommunityIcons name="swap-horizontal-bold" size={20} color={colors.primaryLight} />
-                    </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon3, { backgroundColor: `${colors.primary}1A` }]}>
-                        <MaterialCommunityIcons name="currency-usd" size={20} color={colors.primary} />
-                    </View>
-                    <View style={[styles.floatingIcon, styles.floatingIcon4, { backgroundColor: `${colors.primary}1A` }]}>
-                        <MaterialCommunityIcons name="trending-up" size={20} color={colors.primaryLight} />
-                    </View>
-                </View>
 
-                {/* Status Text */}
-                <View style={styles.statusTextContainer}>
-                    <Text style={[styles.statusTitle, { color: colors.primary }]}>
-                        🤖 Bot is Actively Trading
-                    </Text>
-                    <Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>
-                        Scanning markets • Executing trades • 24/7 monitoring
-                    </Text>
-                </View>
-
-                {/* Stats */}
-                <View style={styles.activeActions}>
-                    <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
-                        <MaterialCommunityIcons name="chart-areaspline" size={20} color={colors.primary} />
-                        <Text style={[styles.statText, { color: todayPnL >= 0 ? colors.success : colors.error }]}>
-                            ${todayPnL.toFixed(2)}
+                    {/* Status Text */}
+                    <View style={styles.statusTextContainer}>
+                        <Text style={[styles.statusTitle, { color: colors.primary }]}>
+                            🤖 Bot is Actively Trading
                         </Text>
-                        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Today's P/L</Text>
+                        <Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>
+                            Scanning markets • Executing trades • 24/7 monitoring
+                        </Text>
                     </View>
-                    <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
-                        <MaterialCommunityIcons name="repeat" size={20} color={colors.primaryLight} />
-                        <Text style={[styles.statText, { color: colors.text }]}>{todayTrades}</Text>
-                        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trades</Text>
+
+                    {/* Stats */}
+                    <View style={styles.activeActions}>
+                        <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
+                            <MaterialCommunityIcons name="chart-areaspline" size={20} color={colors.primary} />
+                            <Text style={[styles.statText, { color: todayPnL >= 0 ? colors.success : colors.error }]}>
+                                ${todayPnL.toFixed(2)}
+                            </Text>
+                            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Today's P/L</Text>
+                        </View>
+                        <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
+                            <MaterialCommunityIcons name="repeat" size={20} color={colors.primaryLight} />
+                            <Text style={[styles.statText, { color: colors.text }]}>{todayTrades}</Text>
+                            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trades</Text>
+                        </View>
                     </View>
-                </View>
 
-                {/* View Details Button - Outline Style */}
-                <Pressable
-                    onPress={() => router.push('/trades-history')}
-                    style={({ pressed }) => [
-                        styles.viewDetailsButton,
-                        {
-                            backgroundColor: isDark ? 'rgba(138, 79, 255, 0.08)' : `${colors.primary}15`,
-                            borderColor: colors.primary,
-                            opacity: pressed ? 0.7 : 1,
-                        }
-                    ]}
-                >
-                    <MaterialCommunityIcons name="chart-box-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.viewDetailsText, { color: colors.primary }]}>
-                        View Full Analytics & Trades
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={18} color={colors.primary} />
-                </Pressable>
+                    {/* View Details Button - Outline Style */}
+                    <Pressable
+                        onPress={() => router.push('/trades-history')}
+                        style={({ pressed }) => [
+                            styles.viewDetailsButton,
+                            {
+                                backgroundColor: isDark ? 'rgba(138, 79, 255, 0.08)' : `${colors.primary}15`,
+                                borderColor: colors.primary,
+                                opacity: pressed ? 0.7 : 1,
+                            }
+                        ]}
+                    >
+                        <MaterialCommunityIcons name="chart-box-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.viewDetailsText, { color: colors.primary }]}>
+                            View Full Analytics & Trades
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-right" size={18} color={colors.primary} />
+                    </Pressable>
 
-                {/* Stop button hint */}
-                <View style={styles.footerHint}>
-                    <MaterialCommunityIcons name="gesture-tap" size={14} color={colors.textLight} />
-                    <Text style={[styles.footerHintText, { color: colors.textLight }]}>
-                        Tap the robot to stop trading
-                    </Text>
-                </View>
-            </Surface>
+                    {/* Stop button hint */}
+                    <View style={styles.footerHint}>
+                        <MaterialCommunityIcons name="gesture-tap" size={14} color={colors.textLight} />
+                        <Text style={[styles.footerHintText, { color: colors.textLight }]}>
+                            Tap the robot to stop trading
+                        </Text>
+                    </View>
+                </Surface>
 
-            {/* Bot Selection Modal */}
-            <BotSelectionModal
-                visible={showBotModal}
-                onClose={() => setShowBotModal(false)}
-                onSelectBot={handleBotSelection}
-                currentlySelected={selectedBot?.id}
-            />
-        </>
+                {/* Bot Selection Modal */}
+                <BotSelectionModal
+                    visible={showBotModal}
+                    onClose={() => setShowBotModal(false)}
+                    onSelectBot={handleBotSelection}
+                    currentlySelected={selectedBot?.id}
+                />
+            </>
         );
     }
 
@@ -631,10 +603,13 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                         <MaterialCommunityIcons
                             name={selectedBot.id === 'conservative-trader' ? 'shield-check' : 'lightning-bolt'}
                             size={16}
-                            color={selectedBot.id === 'conservative-trader' ? '#10b981' : '#f59e0b'}
+                            color={selectedBot.id === 'conservative-trader' ? colors.success : colors.warning}
                         />
-                        <Text style={[styles.botIndicatorText, { color: colors.text }]}>
-                            Selected: {selectedBot.name}
+                        <Text style={[styles.botIndicatorLabel, { color: colors.textSecondary }]}>
+                            Bot:
+                        </Text>
+                        <Text style={[styles.botNameText, { color: colors.text, fontFamily: FONTS.display }]}>
+                            {selectedBot.name}
                         </Text>
                         <Pressable
                             onPress={() => setShowBotModal(true)}
@@ -649,86 +624,86 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                     </View>
                 )}
 
-            {/* Power Button Area */}
-            <View style={styles.powerButtonContainer}>
-                {/* Outer ring */}
-                <Animated.View style={[
-                    styles.outerRing,
-                    { borderColor: statusColor },
-                    idleRingStyle,
-                ]} />
-
-                {/* Progress ring (during activation) */}
-                {botStatus === 'activating' && (
+                {/* Power Button Area */}
+                <View style={styles.powerButtonContainer}>
+                    {/* Outer ring */}
                     <Animated.View style={[
-                        styles.progressRing,
-                        { borderColor: colors.primaryLight, borderTopColor: 'transparent' },
-                        iconSpinStyle,
+                        styles.outerRing,
+                        { borderColor: statusColor },
+                        idleRingStyle,
                     ]} />
-                )}
 
-                {/* Power button */}
-                <Pressable
-                    onPress={botStatus === 'idle' ? handleActivate : undefined}
-                    disabled={botStatus !== 'idle'}
-                    style={({ pressed }) => [
-                        styles.powerButton,
-                        {
-                            backgroundColor: `${statusColor}15`,
-                            transform: [{ scale: pressed && botStatus === 'idle' ? 0.95 : 1 }],
-                        },
-                    ]}
-                >
-                    {botStatus === 'activating' ? (
-                        <Animated.View style={iconSpinStyle}>
+                    {/* Progress ring (during activation) */}
+                    {botStatus === 'activating' && (
+                        <Animated.View style={[
+                            styles.progressRing,
+                            { borderColor: colors.primaryLight, borderTopColor: 'transparent' },
+                            iconSpinStyle,
+                        ]} />
+                    )}
+
+                    {/* Power button */}
+                    <Pressable
+                        onPress={botStatus === 'idle' ? handleActivate : undefined}
+                        disabled={botStatus !== 'idle'}
+                        style={({ pressed }) => [
+                            styles.powerButton,
+                            {
+                                backgroundColor: `${statusColor}15`,
+                                transform: [{ scale: pressed && botStatus === 'idle' ? 0.95 : 1 }],
+                            },
+                        ]}
+                    >
+                        {botStatus === 'activating' ? (
+                            <Animated.View style={iconSpinStyle}>
+                                <MaterialCommunityIcons
+                                    name="loading"
+                                    size={40}
+                                    color={statusColor}
+                                />
+                            </Animated.View>
+                        ) : (
                             <MaterialCommunityIcons
-                                name="loading"
+                                name="rocket-launch"
                                 size={40}
                                 color={statusColor}
                             />
-                        </Animated.View>
-                    ) : (
-                        <MaterialCommunityIcons
-                            name="rocket-launch"
-                            size={40}
-                            color={statusColor}
-                        />
-                    )}
-                </Pressable>
-            </View>
+                        )}
+                    </Pressable>
+                </View>
 
-            {/* Status Text */}
-            <View style={styles.statusTextContainer}>
-                <Text style={[styles.statusTitle, { color: colors.text }]}>
-                    {botStatus === 'activating' ? 'Initializing Bot...' :
-                        botStatus === 'deactivating' ? 'Stopping...' :
-                            '🚀 Start Trading'}
-                </Text>
-                <Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>
-                    {botStatus === 'activating' ? 'Connecting to exchange...' :
-                        'Tap to let the bot trade for you'}
-                </Text>
-            </View>
-
-            {/* Footer hint */}
-            {botStatus === 'idle' && (
-                <View style={styles.footerHint}>
-                    <MaterialCommunityIcons name="shield-check" size={14} color={colors.textLight} />
-                    <Text style={[styles.footerHintText, { color: colors.textLight }]}>
-                        Secure • Automated • 24/7
+                {/* Status Text */}
+                <View style={styles.statusTextContainer}>
+                    <Text style={[styles.statusTitle, { color: colors.text }]}>
+                        {botStatus === 'activating' ? 'Initializing Bot...' :
+                            botStatus === 'deactivating' ? 'Stopping...' :
+                                '🚀 Start Trading'}
+                    </Text>
+                    <Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>
+                        {botStatus === 'activating' ? 'Connecting to exchange...' :
+                            'Tap to let the bot trade for you'}
                     </Text>
                 </View>
-            )}
-        </Surface>
 
-        {/* Bot Selection Modal */}
-        <BotSelectionModal
-            visible={showBotModal}
-            onClose={() => setShowBotModal(false)}
-            onSelectBot={handleBotSelection}
-            currentlySelected={selectedBot?.id}
-        />
-    </>
+                {/* Footer hint */}
+                {botStatus === 'idle' && (
+                    <View style={styles.footerHint}>
+                        <MaterialCommunityIcons name="shield-check" size={14} color={colors.textLight} />
+                        <Text style={[styles.footerHintText, { color: colors.textLight }]}>
+                            Secure • Automated • 24/7
+                        </Text>
+                    </View>
+                )}
+            </Surface>
+
+            {/* Bot Selection Modal */}
+            <BotSelectionModal
+                visible={showBotModal}
+                onClose={() => setShowBotModal(false)}
+                onSelectBot={handleBotSelection}
+                currentlySelected={selectedBot?.id}
+            />
+        </>
     );
 }
 
@@ -980,13 +955,19 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 16,
     },
-    botIndicatorText: {
-        fontSize: 13,
-        fontWeight: '600',
-        flex: 1,
+
+    // Bot Name Styling
+    botIndicatorLabel: {
+        fontSize: 11,
+        fontWeight: '500',
+    },
+    botNameText: {
+        fontSize: 18,
+        marginTop: -2,
     },
     changeBotText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
+        marginLeft: 8,
     },
 });

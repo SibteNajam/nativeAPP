@@ -2,12 +2,16 @@
  * Exchange Context
  * Manages the currently selected exchange for API calls
  * User can have multiple exchanges connected but uses one at a time
+ * 
+ * OPTIMIZED: Uses centralized Zustand credentials store (no duplicate API calls)
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExchangeType, CredentialResponse } from '@/types/exchange.types';
-import { useCredentials } from '@/hooks/useCredentials';
+
+// Zustand Store - Centralized credentials data
+import { useCredentialsStore } from '@/store/credentialsStore';
 
 // Storage key
 const SELECTED_EXCHANGE_KEY = 'selected_exchange';
@@ -27,7 +31,7 @@ interface ExchangeContextType {
     selectExchange: (exchangeId: ExchangeType) => Promise<void>;
     refreshExchanges: () => Promise<void>;
 
-    // Helpers from useCredentials
+    // Helpers from credentials store
     isExchangeConnected: (exchangeId: ExchangeType) => boolean;
     getCredentialForExchange: (exchangeId: ExchangeType) => CredentialResponse | undefined;
 }
@@ -61,16 +65,16 @@ export const ExchangeProvider: React.FC<ExchangeProviderProps> = ({ children }) 
     const [selectedExchange, setSelectedExchange] = useState<ExchangeType | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Use the credentials hook
-    const {
-        credentials,
-        isLoading: credentialsLoading,
-        fetchCredentials,
-        isExchangeConnected,
-        getCredentialForExchange,
-    } = useCredentials();
+    // Use Zustand store for credentials (centralized - no duplicate API calls)
+    const credentials = useCredentialsStore((state) => state.credentials);
+    const credentialsLoading = useCredentialsStore((state) => state.isLoading);
+    const fetchCredentials = useCredentialsStore((state) => state.fetchCredentials);
+    const isExchangeConnected = useCredentialsStore((state) => state.isExchangeConnected);
+    const getCredentialForExchange = useCredentialsStore((state) => state.getCredentialForExchange);
 
     // Load saved selected exchange on mount
+    // Note: fetchCredentials is now called from AuthContext after successful login
+    // This prevents 401 errors when app starts before user is authenticated
     useEffect(() => {
         loadSelectedExchange();
     }, []);
@@ -116,7 +120,7 @@ export const ExchangeProvider: React.FC<ExchangeProviderProps> = ({ children }) 
     }, []);
 
     const refreshExchanges = useCallback(async () => {
-        await fetchCredentials();
+        await fetchCredentials(true); // Force refresh
     }, [fetchCredentials]);
 
     // Get the credential for the selected exchange
@@ -154,3 +158,4 @@ export const ExchangeProvider: React.FC<ExchangeProviderProps> = ({ children }) 
 };
 
 export default ExchangeContext;
+

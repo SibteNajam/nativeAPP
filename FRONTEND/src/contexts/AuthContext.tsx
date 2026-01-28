@@ -18,6 +18,9 @@ import {
     VerifyOTPRequest,
 } from '@/types/auth.types';
 
+// Credentials store - for fetching exchange credentials after login
+import { useCredentialsStore } from '@/store/credentialsStore';
+
 // Default context value
 const defaultContextValue: AuthContextType = {
     user: null,
@@ -86,6 +89,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (currentUser) {
                 setUser(currentUser);
                 setStatus('authenticated');
+
+                // Fetch user's exchange credentials for authenticated session
+                useCredentialsStore.getState().fetchCredentials(true);
             } else {
                 // Token is invalid, clear session
                 await authStorage.clearSession();
@@ -112,6 +118,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.success && response.user) {
                 setUser(response.user);
                 setStatus('authenticated');
+
+                // Fetch user's exchange credentials after successful login
+                // This ensures the dashboard shows connected exchanges immediately
+                useCredentialsStore.getState().fetchCredentials(true);
 
                 // Navigate to main dashboard (has sidebar drawer for exchange management)
                 router.replace('/(tabs)');
@@ -165,6 +175,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setIsLoading(true);
 
             await authApi.logout();
+
+            // Clear credentials store
+            useCredentialsStore.getState().clearCredentials();
 
             setUser(null);
             setStatus('unauthenticated');

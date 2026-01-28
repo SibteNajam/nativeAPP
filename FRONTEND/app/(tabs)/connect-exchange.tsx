@@ -25,9 +25,10 @@ import * as Haptics from 'expo-haptics';
 // Theme & Auth
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useExchange } from '@/contexts/ExchangeContext';
 
-// Custom Hooks (clean architecture - data fetching separated from UI)
-import { useCredentials } from '@/hooks/useCredentials';
+// Zustand Store - Centralized credentials (no duplicate API calls)
+import { useCredentialsStore } from '@/store/credentialsStore';
 
 // Types only (no API imports in UI files)
 import {
@@ -41,21 +42,18 @@ import {
 export default function ConnectExchangeScreen() {
     const { colors, isDark, toggleTheme } = useTheme();
     const { user } = useAuth();
+    const { isExchangeConnected, getCredentialForExchange } = useExchange();
 
     // Get route params (for edit mode from sidebar)
     const { editExchange } = useLocalSearchParams<{ editExchange?: string }>();
 
-    // Use the credentials hook for all data operations
-    const {
-        credentials,
-        isLoading,
-        isSaving,
-        error,
-        isExchangeConnected,
-        getCredentialForExchange,
-        saveCredential,
-        deleteCredential,
-    } = useCredentials();
+    // Use Zustand store for credentials (centralized - no duplicate API calls)
+    const credentials = useCredentialsStore((state) => state.credentials);
+    const isLoading = useCredentialsStore((state) => state.isLoading);
+    const isSaving = useCredentialsStore((state) => state.isSaving);
+    const error = useCredentialsStore((state) => state.error);
+    const saveCredential = useCredentialsStore((state) => state.saveCredential);
+    const deleteCredential = useCredentialsStore((state) => state.deleteCredential);
 
     // Local UI state only
     const [selectedExchange, setSelectedExchange] = useState<ExchangeInfo | null>(null);
@@ -265,11 +263,11 @@ export default function ConnectExchangeScreen() {
                             mode="text"
                             onPress={handleContinue}
                             textColor={colors.primary}
-                    >
-                        Skip
-                    </Button>
-                )}
-            </View>
+                        >
+                            Skip
+                        </Button>
+                    )}
+                </View>
             </View>
 
 

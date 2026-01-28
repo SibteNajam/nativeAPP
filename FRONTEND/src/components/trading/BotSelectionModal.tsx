@@ -130,15 +130,15 @@ export default function BotSelectionModal({
                     tint={isDark ? 'dark' : 'light'}
                     style={StyleSheet.absoluteFillObject}
                 />
-                
+
                 <Pressable
                     style={StyleSheet.absoluteFillObject}
                     onPress={onClose}
                 />
 
                 <Animated.View
-                    entering={SlideInDown.springify().damping(20)}
-                    exiting={SlideOutDown.springify().damping(20)}
+                    entering={SlideInDown.duration(400).damping(25).stiffness(120)}
+                    exiting={SlideOutDown.duration(300)}
                     style={[styles.modalContent, { backgroundColor: colors.surface }]}
                 >
                     {/* Header */}

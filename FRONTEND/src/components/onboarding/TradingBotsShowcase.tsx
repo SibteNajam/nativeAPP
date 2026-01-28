@@ -9,6 +9,7 @@ import { Surface, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTheme } from '@/contexts/ThemeContext';
+import { FONTS } from '@/constants/fonts';
 
 interface Bot {
     id: string;
@@ -172,7 +173,7 @@ export default function TradingBotsShowcase() {
                             damping: 14,
                         }}
                     >
-                        <Pressable 
+                        <Pressable
                             style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
                             onPress={() => openBotDetails(bot)}
                         >
@@ -216,7 +217,7 @@ export default function TradingBotsShowcase() {
                                     />
                                 </View>
 
-                                <Text style={[styles.botName, { color: colors.text }]}>
+                                <Text style={[styles.botName, { color: colors.text, fontFamily: FONTS.display }]}>
                                     {bot.name}
                                 </Text>
                                 <Text
@@ -285,7 +286,7 @@ export default function TradingBotsShowcase() {
                                     </Text>
                                 </View>
 
-                                <Pressable 
+                                <Pressable
                                     style={[styles.detailsButton, { backgroundColor: bot.color }]}
                                     onPress={() => openBotDetails(bot)}
                                 >
@@ -314,13 +315,13 @@ export default function TradingBotsShowcase() {
                                         <View style={[styles.modalIconContainer, { backgroundColor: `${selectedBot.color}20` }]}>
                                             <MaterialCommunityIcons name={selectedBot.icon as any} size={40} color={selectedBot.color} />
                                         </View>
-                                        <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                        <Text style={[styles.modalTitle, { color: colors.text, fontFamily: FONTS.display }]}>
                                             {selectedBot.name}
                                         </Text>
                                         <Text style={[styles.modalStrategy, { color: colors.textSecondary }]}>
                                             {selectedBot.strategy}
                                         </Text>
-                                        <Pressable 
+                                        <Pressable
                                             style={styles.closeButton}
                                             onPress={() => setModalVisible(false)}
                                         >
@@ -372,39 +373,39 @@ export default function TradingBotsShowcase() {
                                                 Trading Specifications
                                             </Text>
                                             <View style={styles.detailsList}>
-                                                <DetailRow 
-                                                    icon="clock-outline" 
-                                                    label="Frequency" 
+                                                <DetailRow
+                                                    icon="clock-outline"
+                                                    label="Frequency"
                                                     value={selectedBot.details.tradingFrequency}
                                                     colors={colors}
                                                 />
-                                                <DetailRow 
-                                                    icon="chart-timeline-variant" 
-                                                    label="Timeframe" 
+                                                <DetailRow
+                                                    icon="chart-timeline-variant"
+                                                    label="Timeframe"
                                                     value={selectedBot.details.timeframe}
                                                     colors={colors}
                                                 />
-                                                <DetailRow 
-                                                    icon="clock-time-four-outline" 
-                                                    label="Avg Duration" 
+                                                <DetailRow
+                                                    icon="clock-time-four-outline"
+                                                    label="Avg Duration"
                                                     value={selectedBot.details.avgTradeDuration}
                                                     colors={colors}
                                                 />
-                                                <DetailRow 
-                                                    icon="cash" 
-                                                    label="Min Investment" 
+                                                <DetailRow
+                                                    icon="cash"
+                                                    label="Min Investment"
                                                     value={selectedBot.details.minInvestment}
                                                     colors={colors}
                                                 />
-                                                <DetailRow 
-                                                    icon="arrow-collapse-down" 
-                                                    label="Max Drawdown" 
+                                                <DetailRow
+                                                    icon="arrow-collapse-down"
+                                                    label="Max Drawdown"
                                                     value={selectedBot.details.maxDrawdown}
                                                     colors={colors}
                                                 />
-                                                <DetailRow 
-                                                    icon="calendar-range" 
-                                                    label="Backtest Period" 
+                                                <DetailRow
+                                                    icon="calendar-range"
+                                                    label="Backtest Period"
                                                     value={selectedBot.details.backtestPeriod}
                                                     colors={colors}
                                                 />
@@ -434,10 +435,10 @@ export default function TradingBotsShowcase() {
                                             </Text>
                                             {selectedBot.details.idealFor.map((item, idx) => (
                                                 <View key={idx} style={styles.idealForItem}>
-                                                    <MaterialCommunityIcons 
-                                                        name="check-circle" 
-                                                        size={20} 
-                                                        color={colors.success} 
+                                                    <MaterialCommunityIcons
+                                                        name="check-circle"
+                                                        size={20}
+                                                        color={colors.success}
                                                     />
                                                     <Text style={[styles.idealForText, { color: colors.text }]}>
                                                         {item}

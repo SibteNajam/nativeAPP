@@ -1,5 +1,11 @@
 import { PropsWithChildren, useState } from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/layout/themed-text';
 import { ThemedView } from '@/components/layout/themed-view';
@@ -11,19 +17,37 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
   const [isOpen, setIsOpen] = useState(false);
   const theme = useColorScheme() ?? 'light';
 
+  // Shared value for smooth 60fps rotation animation
+  const rotation = useSharedValue(0);
+
+  const handlePress = () => {
+    // Animate rotation on UI thread for smooth 60fps performance
+    rotation.value = withTiming(isOpen ? 0 : 90, {
+      duration: 200,
+      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+    });
+    setIsOpen((value) => !value);
+  };
+
+  // Animated style for the icon rotation - runs on UI thread
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
   return (
     <ThemedView>
       <TouchableOpacity
         style={styles.heading}
-        onPress={() => setIsOpen((value) => !value)}
+        onPress={handlePress}
         activeOpacity={0.8}>
-        <IconSymbol
-          name="chevron.right"
-          size={18}
-          weight="medium"
-          color={theme === 'light' ? LIGHT_COLORS.text : DARK_COLORS.text}
-          style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
-        />
+        <Animated.View style={iconAnimatedStyle}>
+          <IconSymbol
+            name="chevron.right"
+            size={18}
+            weight="medium"
+            color={theme === 'light' ? LIGHT_COLORS.text : DARK_COLORS.text}
+          />
+        </Animated.View>
 
         <ThemedText type="defaultSemiBold">{title}</ThemedText>
       </TouchableOpacity>

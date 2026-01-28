@@ -23,8 +23,8 @@ import * as Haptics from 'expo-haptics';
 // Theme
 import { useTheme } from '@/contexts/ThemeContext';
 
-// Custom Hooks
-import { useCredentials } from '@/hooks/useCredentials';
+// Zustand Store - Centralized credentials
+import { useCredentialsStore } from '@/store/credentialsStore';
 import { useExchange } from '@/contexts/ExchangeContext';
 
 // Types
@@ -50,7 +50,12 @@ export default function ConnectExchangeModal({
 }: ConnectExchangeModalProps) {
     const { colors } = useTheme();
     const { refreshExchanges, getCredentialForExchange } = useExchange();
-    const { saveCredential, deleteCredential, isSaving, error: apiError } = useCredentials();
+
+    // Use Zustand store for credentials (centralized - no duplicate API calls)
+    const saveCredential = useCredentialsStore((state) => state.saveCredential);
+    const deleteCredential = useCredentialsStore((state) => state.deleteCredential);
+    const isSaving = useCredentialsStore((state) => state.isSaving);
+    const apiError = useCredentialsStore((state) => state.error);
 
     // Local state
     const [selectedExchange, setSelectedExchange] = useState<ExchangeInfo | null>(null);

@@ -19,6 +19,14 @@ class RemoteLogger {
     private queue: LogData[] = [];
     private sendInterval: NodeJS.Timeout | null = null;
 
+    // Sensitive keys that should never be logged
+    private static readonly SENSITIVE_KEYS = [
+        'token', 'access_token', 'accessToken', 'refresh_token', 'refreshToken',
+        'password', 'secret', 'apiKey', 'api_key', 'apiSecret', 'api_secret',
+        'secretKey', 'secret_key', 'privateKey', 'private_key', 'passphrase',
+        'authorization', 'auth', 'cookie', 'session', 'credential'
+    ];
+
     constructor() {
         // Send queued logs every 10 seconds
         if (this.enabled) {
@@ -27,10 +35,48 @@ class RemoteLogger {
     }
 
     /**
+     * Sanitize sensitive data from objects before logging
+     * Replaces sensitive values with '[REDACTED]'
+     */
+    private sanitizeData(data: any, depth: number = 0): any {
+        // Prevent infinite recursion
+        if (depth > 5) return '[MAX_DEPTH]';
+        if (data === null || data === undefined) return data;
+
+        // Handle primitive types
+        if (typeof data !== 'object') return data;
+
+        // Handle arrays
+        if (Array.isArray(data)) {
+            return data.map(item => this.sanitizeData(item, depth + 1));
+        }
+
+        // Handle objects
+        const sanitized: Record<string, any> = {};
+        for (const key of Object.keys(data)) {
+            const lowerKey = key.toLowerCase();
+            const isSensitive = RemoteLogger.SENSITIVE_KEYS.some(
+                sensitive => lowerKey.includes(sensitive.toLowerCase())
+            );
+
+            if (isSensitive) {
+                sanitized[key] = '[REDACTED]';
+            } else {
+                sanitized[key] = this.sanitizeData(data[key], depth + 1);
+            }
+        }
+        return sanitized;
+    }
+
+    /**
      * Log API request/response for tracking
+     * Automatically sanitizes sensitive data
      */
     logAPI(method: string, url: string, status: number, data?: any) {
         if (!this.enabled) return;
+
+        // Sanitize the response data before logging
+        const sanitizedData = data ? this.sanitizeData(data) : undefined;
 
         this.queue.push({
             level: status >= 400 ? 'error' : 'info',
@@ -39,7 +85,7 @@ class RemoteLogger {
                 method,
                 url,
                 status,
-                response: data,
+                response: sanitizedData,
             },
             timestamp: new Date().toISOString(),
         });

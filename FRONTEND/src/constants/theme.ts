@@ -14,7 +14,7 @@ import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 // ===========================================
 
 // We use an "Indigo" primary. It sits between Blue (Trust) and Violet (Tech).
-export const PRIMARY_COLOR = '#4F46E5'; 
+export const PRIMARY_COLOR = '#4F46E5';
 
 const PRIMARY_SHADES = {
   // The 'Fintech Indigo' - Professional & Sharp
@@ -56,7 +56,7 @@ export const LIGHT_COLORS = {
   // Terminal/Card Colors (Specific to your UI)
   terminalBg: '#1E293B',     // Keep terminal dark even in light mode for contrast
   terminalHeader: '#0F172A', // Dark header
-  terminalBorder: '#334155', 
+  terminalBorder: '#334155',
   cardBg: '#FFFFFF',
 
   // Text Colors (High Contrast Slate)
@@ -69,14 +69,14 @@ export const LIGHT_COLORS = {
   success: '#10B981',      // "TradingView" Green
   successLight: '#D1FAE5',
   successMuted: '#047857',
-  
+
   warning: '#F59E0B',      // Standard Amber
   warningLight: '#FEF3C7',
-  
+
   error: '#EF4444',        // "TradingView" Red
   errorLight: '#FEE2E2',
   errorMuted: '#B91C1C',
-  
+
   info: '#3B82F6',         // Standard Blue
   infoLight: '#DBEAFE',
 
@@ -141,14 +141,14 @@ export const DARK_COLORS = {
   success: '#34D399',      // Lighter Green for readability
   successLight: 'rgba(16, 185, 129, 0.15)',
   successMuted: '#065F46',
-  
+
   warning: '#FBBF24',      // Lighter Amber
   warningLight: 'rgba(245, 158, 11, 0.15)',
-  
+
   error: '#F87171',        // Lighter Red
   errorLight: 'rgba(239, 68, 68, 0.15)',
   errorMuted: '#7F1D1D',
-  
+
   info: '#60A5FA',
   infoLight: 'rgba(59, 130, 246, 0.15)',
 
@@ -246,12 +246,12 @@ export const lightPaperTheme = {
     onSurface: LIGHT_COLORS.text,
     outline: LIGHT_COLORS.border,
     elevation: {
-        level0: 'transparent',
-        level1: LIGHT_COLORS.surface,
-        level2: LIGHT_COLORS.surface,
-        level3: LIGHT_COLORS.surface,
-        level4: LIGHT_COLORS.surface,
-        level5: LIGHT_COLORS.surface,
+      level0: 'transparent',
+      level1: LIGHT_COLORS.surface,
+      level2: LIGHT_COLORS.surface,
+      level3: LIGHT_COLORS.surface,
+      level4: LIGHT_COLORS.surface,
+      level5: LIGHT_COLORS.surface,
     }
   },
   roundness: RADIUS.md,
@@ -272,30 +272,24 @@ export const darkPaperTheme = {
     onSurface: DARK_COLORS.text,
     outline: DARK_COLORS.border,
     elevation: {
-        level0: 'transparent',
-        level1: DARK_COLORS.surface,
-        level2: DARK_COLORS.surface,
-        level3: DARK_COLORS.surface,
-        level4: DARK_COLORS.surface,
-        level5: DARK_COLORS.surface,
+      level0: 'transparent',
+      level1: DARK_COLORS.surface,
+      level2: DARK_COLORS.surface,
+      level3: DARK_COLORS.surface,
+      level4: DARK_COLORS.surface,
+      level5: DARK_COLORS.surface,
     }
   },
   roundness: RADIUS.md,
 };
 
 // ===========================================
-// FONTS
+// FONTS - Imported from centralized fonts.ts
 // ===========================================
 
-export const FONTS = {
-  heading: 'Poppins_700Bold',
-  headingBold: 'Poppins_800ExtraBold',
-  headingSemibold: 'Poppins_600SemiBold',
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemibold: 'Inter_600SemiBold',
-  mono: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-};
+// Re-export from fonts.ts for backward compatibility
+import { FONTS, FONT_ASSETS, TEXT_STYLES } from './fonts';
+export { FONTS, FONT_ASSETS, TEXT_STYLES };
 
 export const ANIMATION = {
   fast: 200, normal: 400, slow: 600, slower: 800, slowest: 1000,
@@ -318,6 +312,8 @@ export default {
   RADIUS,
   SHADOWS,
   FONTS,
+  FONT_ASSETS,
+  TEXT_STYLES,
   ANIMATION,
   lightPaperTheme,
   darkPaperTheme,

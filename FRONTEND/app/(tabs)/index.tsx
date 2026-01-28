@@ -1,9 +1,15 @@
 /**
  * Dashboard Home Screen
  * Main screen with hamburger menu and exchange drawer
+ * 
+ * Performance Optimizations:
+ * - AppState listener to pause polling when app is in background
+ * - Memoized ExchangePreviewCard to prevent unnecessary re-renders
+ * - Skip API calls when no exchange is connected
+ * - ZUSTAND STORE: Centralized trades data (no duplicate API calls)
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +18,9 @@ import {
   Pressable,
   RefreshControl,
   Animated,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Surface, IconButton, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -30,8 +37,61 @@ import AssetsCard from '@/components/trading/AssetsCard';
 import OpenOrdersCard from '@/components/trading/OpenOrdersCard';
 import ConnectExchangeModal from '@/components/modals/ConnectExchangeModal';
 
+// Zustand Store - Centralized trades data management
+import { useTradesStore } from '@/store/tradesStore';
+
+// Fonts
+import { FONTS } from '@/constants/fonts';
+
 // Types
 import { CredentialResponse, getExchangeInfo, ExchangeType } from '@/types/exchange.types';
+
+/**
+ * Memoized Exchange Preview Card
+ * Prevents re-renders when parent state changes (like todayPnL counter)
+ */
+interface ExchangePreviewCardProps {
+  credential: CredentialResponse;
+  isActive: boolean;
+  colors: any;
+  onPress: () => void;
+}
+
+const ExchangePreviewCard = memo(function ExchangePreviewCard({
+  credential,
+  isActive,
+  colors,
+  onPress,
+}: ExchangePreviewCardProps) {
+  const info = getExchangeInfo(credential.exchange);
+  if (!info) return null;
+
+  return (
+    <Pressable
+      style={[
+        styles.exchangePreviewCard,
+        {
+          backgroundColor: isActive ? `${info.color}15` : colors.surface,
+          borderColor: isActive ? info.color : colors.border,
+          borderWidth: isActive ? 2 : 1,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <MaterialCommunityIcons
+        name={info.icon as any}
+        size={28}
+        color={info.color}
+      />
+      <Text style={[styles.exchangePreviewName, { color: colors.text }]}>
+        {info.name}
+      </Text>
+      {isActive && (
+        <View style={[styles.activeDot, { backgroundColor: colors.success }]} />
+      )}
+    </Pressable>
+  );
+});
 
 export default function DashboardScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -44,15 +104,84 @@ export default function DashboardScreen() {
   const [editExchangeId, setEditExchangeId] = useState<ExchangeType | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Use Zustand store for trades data (centralized - shared with TradingBotCard)
+  // Dashboard only triggers fetch/clear, TradingBotCard displays the stats
+  const fetchTrades = useTradesStore((state) => state.fetchTrades);
+  const clearTrades = useTradesStore((state) => state.clearTrades);
+
+  // AppState tracking for background/foreground
+  const appState = useRef(AppState.currentState);
+
   // Scroll tracking for parallax effect
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Handle refresh
-  const onRefresh = async () => {
+  // Handle refresh - now uses Zustand store
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Refresh data here
-    setTimeout(() => setRefreshing(false), 1000);
-  };
+    if (selectedExchange) {
+      await fetchTrades(selectedExchange, true); // Force refresh
+    }
+    setTimeout(() => setRefreshing(false), 500);
+  }, [selectedExchange, fetchTrades]);
+
+  // Load stats on mount and when exchange changes
+  useEffect(() => {
+    if (selectedExchange) {
+      // Fetch trades via store (handles caching automatically)
+      fetchTrades(selectedExchange);
+    } else {
+      // Clear trades when no exchange
+      clearTrades();
+    }
+  }, [selectedExchange, fetchTrades, clearTrades]);
+
+  // Auto-refresh every 30 seconds - pauses when app is in background
+  useEffect(() => {
+    // Don't set up polling if no exchange is connected
+    if (!selectedExchange) return;
+
+    let interval: NodeJS.Timeout | null = null;
+
+    // Start polling only when app is active
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      interval = setInterval(() => {
+        // Only poll if app is in foreground and exchange is selected
+        if (appState.current === 'active' && selectedExchange) {
+          fetchTrades(selectedExchange, true); // Force refresh for polling
+        }
+      }, 30000);
+    };
+
+    // Handle app state changes (foreground/background)
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App came to foreground - refresh data and restart polling
+        if (selectedExchange) {
+          fetchTrades(selectedExchange, true);
+          startPolling();
+        }
+      } else if (nextAppState.match(/inactive|background/)) {
+        // App went to background - stop polling to save battery/data
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      }
+      appState.current = nextAppState;
+    };
+
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Initial start
+    startPolling();
+
+    return () => {
+      if (interval) clearInterval(interval);
+      subscription.remove();
+    };
+  }, [selectedExchange, fetchTrades]);
 
   // Handle update credentials from drawer (receives full credential object)
   const handleUpdateCredentials = (credential: CredentialResponse) => {
@@ -146,12 +275,22 @@ export default function DashboardScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 400 }}
         >
-          <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
-            Welcome back,
-          </Text>
-          <Text style={[styles.userName, { color: colors.text }]}>
-            {user?.firstName || 'Trader'} 👋
-          </Text>
+          <View style={styles.welcomeContainer}>
+            <View>
+              <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
+                Welcome back,
+              </Text>
+              <Text style={[styles.userName, { color: colors.text }]}>
+                {user?.firstName || 'Trader'} 👋
+              </Text>
+            </View>
+            <View style={[styles.dateContainer, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <MaterialCommunityIcons name="calendar-today" size={16} color={colors.primary} />
+              <Text style={[styles.dateText, { color: colors.text }]}>
+                {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+          </View>
         </MotiView>
 
         {/* No Exchange Connected Warning */}
@@ -183,7 +322,7 @@ export default function DashboardScreen() {
           </MotiView>
         )}
 
-        {/* Trading Bot Card - Main CTA */}
+        {/* Trading Bot Card - Main CTA (includes Today's PnL and Trades when active) */}
         {connectedExchanges.length > 0 && (
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
@@ -262,39 +401,15 @@ export default function DashboardScreen() {
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.exchangesScroll}>
-              {connectedExchanges.map((credential) => {
-                const info = getExchangeInfo(credential.exchange);
-                const isActive = selectedExchange === credential.exchange;
-
-                if (!info) return null;
-
-                return (
-                  <Pressable
-                    key={credential.id}
-                    style={[
-                      styles.exchangePreviewCard,
-                      {
-                        backgroundColor: isActive ? `${info.color}15` : colors.surface,
-                        borderColor: isActive ? info.color : colors.border,
-                        borderWidth: isActive ? 2 : 1,
-                      },
-                    ]}
-                    onPress={() => setDrawerVisible(true)}
-                  >
-                    <MaterialCommunityIcons
-                      name={info.icon as any}
-                      size={28}
-                      color={info.color}
-                    />
-                    <Text style={[styles.exchangePreviewName, { color: colors.text }]}>
-                      {info.name}
-                    </Text>
-                    {isActive && (
-                      <View style={[styles.activeDot, { backgroundColor: colors.success }]} />
-                    )}
-                  </Pressable>
-                );
-              })}
+              {connectedExchanges.map((credential) => (
+                <ExchangePreviewCard
+                  key={credential.id}
+                  credential={credential}
+                  isActive={selectedExchange === credential.exchange}
+                  colors={colors}
+                  onPress={() => setDrawerVisible(true)}
+                />
+              ))}
             </ScrollView>
           </MotiView>
         )}
@@ -330,7 +445,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 48,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   menuButton: {
     width: 44,
@@ -364,54 +481,52 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   // Welcome
+  welcomeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   welcomeText: {
     fontSize: 14,
+    fontWeight: '500',
   },
   userName: {
     fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 20,
+    fontFamily: FONTS.username,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  dateText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   // Warning Card
   warningCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
     borderRadius: 16,
     marginBottom: 24,
-    gap: 12,
+    gap: 14,
   },
   warningContent: {
     flex: 1,
   },
   warningTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   warningText: {
-    fontSize: 12,
-  },
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 28,
-  },
-  statCard: {
-    width: '48%',
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
   },
   // Section
   sectionHeader: {
@@ -420,9 +535,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 16,
+    letterSpacing: -0.5,
   },
   // Actions Grid
   actionsGrid: {
@@ -432,26 +548,29 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   actionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     textAlign: 'center',
   },
   actionSubtitle: {
     fontSize: 12,
     marginTop: 4,
+    fontWeight: '500',
   },
   // Exchanges Scroll
   exchangesScroll: {
