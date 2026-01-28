@@ -135,6 +135,15 @@ export class RequestOrderDto {
   @IsString()
   policyVersion?: string;
 
+  @ApiProperty({
+    description: 'FinalSignal ID from Neo4j graph (for position tracking)',
+    example: 'BTCUSDT:FinalSignal',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  finalSignalId?: string;
+
   @IsOptional()
   @ValidateNested()
   @Type(() => OrderMetaDto)

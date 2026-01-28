@@ -6,6 +6,7 @@ import { RequestOrderDto, ExchangeEnum, OrderSideEnum } from './dto/place-order.
 import { JWTGuard } from '../guards/jwt.guard';
 import { Public } from 'src/decorators/isPublic';
 import { ApicredentialsService } from '../apicredentials/apicredentials.service';
+import { CredentialHealthService } from '../apicredentials/credential-health.service';
 import { GraphWebhookService } from '../graph-webhook/graph-webhook.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,6 +22,7 @@ export class ExchangesControllerController {
   constructor(
     private readonly exchangesService: ExchangesControllerService,
     private readonly apicredentialsService: ApicredentialsService,
+    private readonly credentialHealth: CredentialHealthService,
     private readonly graphWebhookService: GraphWebhookService,
     private readonly configService: ConfigService,
     @InjectRepository(Order)
@@ -139,11 +141,38 @@ export class ExchangesControllerController {
         };
       }
 
-      this.logger.log(`🎯 Found ${activeCredentials.length} active trading user(s). Placing orders...`);
+      // SMART CREDENTIAL FILTERING: Categorize credentials by health
+      type CredentialType = typeof activeCredentials[number];
+      const healthyCredentials: CredentialType[] = [];
+      const quarantinedCredentials: CredentialType[] = [];
+      
+      for (const cred of activeCredentials) {
+        if (this.credentialHealth.isHealthy(cred.userId, cred.exchange)) {
+          healthyCredentials.push(cred);
+        } else {
+          quarantinedCredentials.push(cred);
+        }
+      }
+
+      this.logger.log(
+        `🎯 Found ${activeCredentials.length} active trading user(s): ` +
+        `${healthyCredentials.length} healthy, ${quarantinedCredentials.length} quarantined`
+      );
+
+      // Determine which credentials to use for order placement
+      let credentialsToUse: CredentialType[] = healthyCredentials;
+
+      if (healthyCredentials.length === 0) {
+        this.logger.warn(`⚠️ All credentials are quarantined - attempting with ALL users anyway`);
+        // Allow retry with ALL credentials (they might have been fixed or quarantine expired)
+        credentialsToUse = activeCredentials;
+      }
+
+      this.logger.log(`📤 Placing orders for ${credentialsToUse.length} user(s)...`);
 
       // Place orders for each user in parallel
       const orderResults = await Promise.allSettled(
-        activeCredentials.map(async (cred) => {
+        healthyCredentials.map(async (cred) => {
           const userLabel = `[User ${cred.userId.substring(0, 8)}...][${cred.exchange.toUpperCase()}]`;
           this.logger.log(`${userLabel} Placing ${side} ${type || 'type is not provided'} order for ${symbol}...`);
 
@@ -193,9 +222,15 @@ export class ExchangesControllerController {
               cred.passphrase,
             );
 
+            // ✅ SUCCESS: Record healthy credential
+            this.credentialHealth.recordSuccess(cred.userId, cred.exchange);
+
             this.logger.log(`${userLabel} ✅ Order placed: orderId=${result.orderId}`);
             return { success: true, userId: cred.userId, exchange: cred.exchange.toUpperCase(), ...result };
           } catch (error) {
+            // ❌ FAILURE: Record failed credential (may trigger quarantine)
+            this.credentialHealth.recordFailure(cred.userId, cred.exchange, error.message);
+
             this.logger.error(`${userLabel} ❌ Failed: ${error.message}`);
             return { success: false, userId: cred.userId, exchange: cred.exchange.toUpperCase(), error: error.message };
           }
@@ -1174,16 +1209,21 @@ export class ExchangesControllerController {
   // =============================================================================
   // ORCHESTRATOR TRADE HISTORY (Dec 2025): Public endpoint for entry price recovery
   // =============================================================================
+  // ENHANCED (Jan 24, 2026): Smart Credential Health System
+  // - Auto-quarantines bad credentials after failures
+  // - Prioritizes healthy credentials
+  // - Graceful degradation when all credentials fail
   @Public()
   @Get('binance-trades')
   @ApiOperation({
     summary: 'Get recent Binance trades for a symbol (public, for orchestrator)',
-    description: 'Fetches trade history from Binance for entry price recovery. Uses aggregated credentials. This is NOT the same as /trades which is user-authenticated.'
+    description: 'Fetches trade history from Binance for entry price recovery. Uses smart credential fallback with auto-quarantine for invalid API keys.'
   })
   @ApiResponse({ status: 200, description: 'Trades fetched successfully' })
   async getBinanceTrades(
     @Query('exchange') exchange: string,
     @Query('symbol') symbol: string,
+    @Query('userId') userId: string,
     @Query('limit') limit: number = 50
   ) {
     try {
@@ -1191,30 +1231,65 @@ export class ExchangesControllerController {
         throw new HttpException('Symbol parameter is required', HttpStatus.BAD_REQUEST);
       }
 
-      this.logger.log(`📜 Fetching Binance trades for ${symbol} (limit: ${limit})`);
+      this.logger.log(`📜 Fetching Binance trades for ${symbol} (limit: ${limit}, userId: ${userId?.substring(0, 8) || 'ANY'})`);
 
-      // Get first active credential for Binance
       const activeCredentials = await this.apicredentialsService.getActiveTradingCredentials();
-      const binanceCred = activeCredentials.find(c => c.exchange.toLowerCase() === 'binance');
+      const binanceCredentials = activeCredentials.filter(c => c.exchange.toLowerCase() === 'binance');
 
-      if (!binanceCred) {
+      if (binanceCredentials.length === 0) {
         return { status: 'Success', data: [], message: 'No active Binance credentials' };
       }
 
-      // Fetch trades from Binance
-      const trades = await this.exchangesService.getBinanceTradesForSymbol(
-        symbol,
-        limit,
-        binanceCred.apiKey,
-        binanceCred.secretKey
+      // SMART CREDENTIAL SELECTION: Sort by health, prefer specified userId
+      const healthyCredential = this.credentialHealth.selectHealthyCredential(
+        binanceCredentials,
+        userId
       );
 
-      return {
-        status: 'Success',
-        data: trades,
-        statusCode: 200,
-        message: `Fetched ${trades.length} trades for ${symbol}`
-      };
+      if (!healthyCredential) {
+        this.logger.error(`❌ All ${binanceCredentials.length} Binance credentials are quarantined`);
+        return { status: 'Success', data: [], message: 'All credentials quarantined - please check API keys' };
+      }
+
+      // Get health-sorted credentials for fallback
+      const sortedCredentials = this.credentialHealth.sortByHealth(binanceCredentials);
+
+      for (const { credential, priority, health } of sortedCredentials) {
+        // Skip actively quarantined credentials if healthier options exist
+        if (priority >= 1000 && sortedCredentials.some(s => s.priority < 100)) {
+          this.logger.debug(`⏭️ Skipping quarantined credential ${credential.userId.substring(0, 8)}...`);
+          continue;
+        }
+
+        try {
+          const trades = await this.exchangesService.getBinanceTradesForSymbol(
+            symbol,
+            limit,
+            credential.apiKey,
+            credential.secretKey
+          );
+
+          // Success! Record it
+          this.credentialHealth.recordSuccess(credential.userId, credential.exchange);
+
+          return {
+            status: 'Success',
+            data: trades,
+            statusCode: 200,
+            message: `Fetched ${trades.length} trades for ${symbol} (via user ${credential.userId.substring(0, 8)})`
+          };
+
+        } catch (credError) {
+          // Record failure (may trigger quarantine)
+          this.credentialHealth.recordFailure(credential.userId, credential.exchange, credError.message);
+          this.logger.warn(`⚠️ Credential ${credential.userId.substring(0, 8)} failed for ${symbol}: ${credError.message}`);
+          // Continue to next credential
+        }
+      }
+
+      // All credentials failed
+      this.logger.error(`❌ All ${binanceCredentials.length} Binance credentials failed for ${symbol}`);
+      return { status: 'Success', data: [], message: 'All credentials failed' };
     } catch (error) {
       this.logger.error(`Error fetching Binance trades: ${error.message}`);
       throw error;
@@ -1333,6 +1408,144 @@ export class ExchangesControllerController {
       };
     } catch (error) {
       this.logger.error(`Error listing open positions: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // =========================================================================
+  // ADMIN: Credential Health Status (Jan 24, 2026)
+  // =========================================================================
+  @Public()
+  @Get('admin/credential-health')
+  @ApiOperation({
+    summary: 'Get credential health status',
+    description: 'Returns health status of all credentials including quarantine state, failure counts, and last errors. Useful for diagnosing API key issues.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Credential health summary',
+    schema: {
+      example: {
+        status: 'Success',
+        data: {
+          total: 3,
+          healthy: 2,
+          quarantined: 1,
+          credentials: [
+            {
+              userId: '2d7ca37d-xxxx',
+              exchange: 'binance',
+              isQuarantined: false,
+              consecutiveFailures: 0,
+              totalSuccesses: 45,
+              totalFailures: 2,
+              lastSuccess: '2026-01-24T10:45:00Z',
+              lastError: null
+            },
+            {
+              userId: '36dca376-xxxx',
+              exchange: 'binance',
+              isQuarantined: true,
+              quarantineReason: 'Authentication error: Invalid API-key',
+              consecutiveFailures: 5,
+              totalSuccesses: 0,
+              totalFailures: 5,
+              lastFailure: '2026-01-24T10:44:00Z',
+              lastError: 'Invalid API-key, IP, or permissions for action.'
+            }
+          ]
+        }
+      }
+    }
+  })
+  async getCredentialHealth() {
+    this.logger.log('🏥 Admin: Fetching credential health status');
+
+    try {
+      const summary = this.credentialHealth.getHealthSummary();
+      
+      // Format credentials for display (hide full UUIDs for security)
+      const formattedCredentials = summary.credentials.map(c => ({
+        userId: `${c.userId.substring(0, 8)}...`,
+        exchange: c.exchange,
+        isQuarantined: c.isQuarantined,
+        quarantineReason: c.quarantineReason,
+        quarantinedAt: c.quarantinedAt?.toISOString() || null,
+        consecutiveFailures: c.consecutiveFailures,
+        totalSuccesses: c.totalSuccesses,
+        totalFailures: c.totalFailures,
+        lastSuccess: c.lastSuccess?.toISOString() || null,
+        lastFailure: c.lastFailure?.toISOString() || null,
+        lastError: c.lastError
+      }));
+
+      return {
+        status: 'Success',
+        data: {
+          total: summary.total,
+          healthy: summary.healthy,
+          quarantined: summary.quarantined,
+          credentials: formattedCredentials
+        },
+        statusCode: 200,
+        message: `${summary.healthy}/${summary.total} credentials healthy, ${summary.quarantined} quarantined`
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching credential health: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // =========================================================================
+  // ADMIN: Reset Credential Health (for when user updates their API keys)
+  // =========================================================================
+  @Public()
+  @Post('admin/reset-credential-health')
+  @ApiOperation({
+    summary: 'Reset credential health status',
+    description: 'Clears quarantine and failure counts for a credential. Use after user updates their API keys.'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string', description: 'User ID (full UUID or first 8 chars)' },
+        exchange: { type: 'string', description: 'Exchange name (e.g., BINANCE, BITGET)' },
+      },
+      required: ['userId', 'exchange'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Credential health reset' })
+  async resetCredentialHealth(
+    @Body() body: { userId: string; exchange: string }
+  ) {
+    this.logger.log(`🔄 Admin: Resetting credential health for ${body.userId?.substring(0, 8)}...[${body.exchange}]`);
+
+    try {
+      // Find matching credential (support partial userId)
+      const allCredentials = await this.apicredentialsService.getActiveTradingCredentials();
+      const matchingCred = allCredentials.find(c => 
+        c.userId.startsWith(body.userId) && 
+        c.exchange.toLowerCase() === body.exchange.toLowerCase()
+      );
+
+      if (!matchingCred) {
+        return {
+          status: 'Error',
+          statusCode: 404,
+          message: `No credential found for user ${body.userId} on ${body.exchange}`
+        };
+      }
+
+      this.credentialHealth.resetHealth(matchingCred.userId, matchingCred.exchange);
+
+      return {
+        status: 'Success',
+        statusCode: 200,
+        message: `Credential health reset for ${matchingCred.userId.substring(0, 8)}...[${matchingCred.exchange}]`
+      };
+    } catch (error) {
+      this.logger.error(`Error resetting credential health: ${error.message}`);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

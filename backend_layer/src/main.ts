@@ -9,35 +9,19 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const dns = require('dns');
-  dns.setServers(['8.8.8.8', '8.8.4.4']);
+  // -----------------------------
+  // 1️⃣ TRUST PROXY (Critical)
+  // -----------------------------
+  // Lets NestJS know it's behind a reverse proxy (Coolify)
+  // Must access underlying Express instance via getHttpAdapter()
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
 
-  // Global error handlers to prevent crashes
-  process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    // Don't exit the process, just log the error
-  });
-
-  process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
-    // Don't exit the process, just log the error
-  });
-
-  // Swagger configuration
-  const config = new DocumentBuilder()
-    .setTitle('Apis for indicators')
-    .setDescription('all endpoints for binance and bitget indicatores')
-    .setVersion('1.0')
-    .addTag('binance', 'Binance related endpoints')
-    .addBearerAuth() // If you plan to use JWT authentication
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
-
-  // Enable CORS for frontend - simple array approach
+  // -----------------------------
+  // 2️⃣ ENABLE CORS
+  // -----------------------------
   app.enableCors({
-    origin: true, // Allow all origins temporarily to test
+    origin: process.env.CORS_ORIGINS?.split(',') || ['*'], // Include your Coolify domain
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -59,10 +43,58 @@ async function bootstrap() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port, '0.0.0.0');
 
+  // -----------------------------
+  // 3️⃣ DNS OVERRIDE (Optional)
+  // -----------------------------
+  const dns = require('dns');
+  dns.setServers(['8.8.8.8', '8.8.4.4']); // Only affects outgoing requests
+
+  // -----------------------------
+  // 4️⃣ GLOBAL ERROR HANDLERS
+  // -----------------------------
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+  });
+
+  // -----------------------------
+  // 5️⃣ SWAGGER CONFIGURATION
+  // -----------------------------
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Apis for indicators')
+    .setDescription('All endpoints for Binance and Bitget indicators')
+    .setVersion('1.0')
+    .addTag('binance', 'Binance related endpoints')
+    .addBearerAuth()
+    .build();
+
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+
+  // Force Swagger to use HTTPS for production domain
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+  swaggerDocument.servers = [
+    { url: backendUrl },
+  ];
+
+  SwaggerModule.setup('api', app, swaggerDocument);
+
+  // -----------------------------
+  // 6️⃣ SERVER PORT & TIMEOUT
+  // -----------------------------
+  const port = process.env.PORT ?? 3000;
+  const server = await app.listen(port, '0.0.0.0');
+
+  // Increase HTTP server timeout (important for long-running requests)
+  server.setTimeout(5 * 60 * 1000); // 5 minutes
+
+  // -----------------------------
+  // 7️⃣ LOGS
+  // -----------------------------
   console.log(`🚀 NestJS is running on http://localhost:${port}`);
-  console.log(`📚 Swagger available at http://localhost:${port}/api`);
+  console.log(`📚 Swagger available at ${backendUrl}/api`);
 }
+
 bootstrap();

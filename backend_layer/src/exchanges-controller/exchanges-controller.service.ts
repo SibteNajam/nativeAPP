@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, In } from 'typeorm';
 import { BinanceSignedService } from '../binance/binance.signed.service';
 import { BinanceService } from '../binance/binance.service';
 import { OrderService as BitgetOrderService } from '../bitget/services/orders.service';
@@ -8,6 +8,7 @@ import { AccountService as BitgetAccountService } from '../bitget/services/accou
 import { BitgetService } from '../bitget/services/market.service';
 import { BitgetGateway } from '../bitget/websocket/bitget.gateway';
 import { ApicredentialsService } from '../apicredentials/apicredentials.service';
+import { CredentialHealthService } from '../apicredentials/credential-health.service';
 import { RequestOrderDto, ExchangeEnum } from './dto/place-order.dto';
 import { normalizeBinanceOrder, normalizeBitgetOrder, normalizeBinanceBalance, normalizeBitgetBalance } from './utils/order-normalizer';
 import { Order } from './entities/order.entity';
@@ -28,6 +29,7 @@ export class ExchangesControllerService {
     private readonly bitgetService: BitgetService,
     private readonly bitgetGateway: BitgetGateway,
     private readonly apiCredentialsService: ApicredentialsService,
+    private readonly credentialHealth: CredentialHealthService,
   ) { }
 
   /**
@@ -351,6 +353,38 @@ export class ExchangesControllerService {
     const userLabel = `[User ${userId.substring(0, 8)}...]`;
 
     try {
+      // =========================================================================
+      // FIX (Jan 23, 2026): Check for PENDING orders (NEW/PARTIALLY_FILLED) too!
+      // =========================================================================
+      // PROBLEM: Previously only checked for status='FILLED'. This caused duplicate
+      // orders when LIMIT orders were placed but hadn't filled yet (status='NEW').
+      // The next pipeline cycle saw no FILLED order → placed another order!
+      //
+      // SOLUTION: Check for ANY active order (NEW, PARTIALLY_FILLED, FILLED).
+      // If ANY BUY order exists in these states, block new orders for same symbol.
+      // =========================================================================
+      
+      // Step 0: Check for PENDING BUY orders (NEW or PARTIALLY_FILLED) - blocks duplicates
+      const pendingBuyOrder = await this.orderRepository.findOne({
+        where: {
+          userId,
+          symbol,
+          exchange,
+          orderRole: 'ENTRY',
+          side: 'BUY',
+          status: In(['NEW', 'PARTIALLY_FILLED']),
+        },
+        order: { orderTimestamp: 'DESC' },
+      });
+
+      if (pendingBuyOrder) {
+        this.logger.warn(
+          `${userLabel}[hasOpenPosition] PENDING BUY ORDER exists for ${symbol}: ` +
+          `orderId=${pendingBuyOrder.orderId}, status=${pendingBuyOrder.status}. Blocking duplicate.`
+        );
+        return true; // Block the buy - order already pending
+      }
+
       // Step 1: Find the most recent FILLED BUY order (ENTRY role)
       const latestBuyOrder = await this.orderRepository.findOne({
         where: {
@@ -589,7 +623,7 @@ export class ExchangesControllerService {
     secretKey: string,
     passphrase?: string,
   ): Promise<any> {
-    const { exchange, symbol, side, sizePct, sizeUsd, tpLevels, sl, type = 'MARKET', price } = orderDto;
+    const { exchange, symbol, side, sizePct, sizeUsd, tpLevels, sl, type = 'MARKET', price, finalSignalId } = orderDto;
     const userLabel = `[User ${userId.substring(0, 8)}...][${exchange}]`;
 
     this.logger.log(`${userLabel} Placing ${side} ${type} order for ${symbol}`);
@@ -599,7 +633,7 @@ export class ExchangesControllerService {
       case ExchangeEnum.BINANCE:
         return this.placeBinanceOrderWithCredentials(
           userId, symbol, side, type, sizePct, price, tpLevels, sl, sizeUsd,
-          apiKey, secretKey,
+          apiKey, secretKey, finalSignalId,
         );
 
       case ExchangeEnum.BITGET:
@@ -629,6 +663,7 @@ export class ExchangesControllerService {
     sizeUsd: number | undefined,
     apiKey: string,
     secretKey: string,
+    finalSignalId?: string,          // FinalSignal ID for position tracking (Jan 2026)
   ): Promise<any> {
     const userLabel = userId ? `[User ${userId.substring(0, 8)}...]` : '[ENV]';
 
@@ -800,6 +835,7 @@ export class ExchangesControllerService {
         slPrice: sl && sl > 0 ? sl : undefined,
         note: hasTpOrSl ? 'Static TP/SL (SF SLTP Manager handles dynamic execution)' : undefined,
         userId: userId || undefined, // Associate order with user
+        finalSignalId: finalSignalId, // FinalSignal ID for position tracking (Jan 2026)
       });
 
       // Note: SLTP is handled by SF app's SLTP Manager which monitors positions
@@ -2255,11 +2291,21 @@ export class ExchangesControllerService {
    * 
    * ENHANCED (Jan 2026): Now includes entry_price calculated from trade history!
    * This fixes the root cause of manual buy positions having $0 entry price.
+   * 
+   * PRINCIPAL-LEVEL FIX (Jan 24, 2026): Smart Credential Fallback
+   * Uses CredentialHealthService to automatically try healthy credentials first,
+   * quarantine bad ones, and gracefully degrade instead of failing completely.
    */
   async getOpenPositions(exchange: string): Promise<any[]> {
     try {
       // Reuse getBalance logic to get raw holdings
       const balances = await this.getBalance(exchange);
+
+      // Get all active credentials for trade history lookup (with health-aware sorting)
+      const allCredentials = await this.apiCredentialsService.getActiveTradingCredentials();
+      const exchangeCredentials = allCredentials.filter(
+        c => c.exchange.toLowerCase() === exchange.toLowerCase()
+      );
 
       const enrichedPositions: any[] = [];
 
@@ -2287,20 +2333,24 @@ export class ExchangesControllerService {
 
               // =============================================================
               // PRINCIPAL-LEVEL FIX (Jan 19, 2026): Trade Boundary Isolation
+              // ENHANCED (Jan 24, 2026): Smart Credential Fallback
               // =============================================================
-              // Previous bug: VWAP was calculated across ALL historical trades,
-              // causing entry_price to be contaminated with old closed positions.
-              //
-              // FIX: Only calculate VWAP from trades AFTER the last full exit.
-              // This isolates the CURRENT trade's entry price.
+              // Uses CredentialHealthService to:
+              // 1. Try healthy credentials first
+              // 2. Auto-quarantine bad credentials after failures
+              // 3. Gracefully degrade instead of failing completely
               // =============================================================
               let entryPrice = 0;
               let entryTimestamp: Date | null = null;
 
               try {
-                if (exchange.toLowerCase() === 'binance') {
-                  // STEP 1: Find the last SELL trade (potential position close)
-                  const trades = await this.binanceSignedService.getMyTrades(pair, 100);
+                if (exchange.toLowerCase() === 'binance' && exchangeCredentials.length > 0) {
+                  // SMART CREDENTIAL FALLBACK: Try credentials in health-priority order
+                  const trades = await this.fetchTradesWithCredentialFallback(
+                    pair,
+                    100,
+                    exchangeCredentials
+                  );
                   
                   if (trades && trades.length > 0) {
                     // Sort by time descending to find latest first
@@ -2607,6 +2657,89 @@ export class ExchangesControllerService {
       this.logger.error(`Error in getOpenEntryOrders: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * ============================================================================
+   * SMART CREDENTIAL FALLBACK: Fetch Binance trades with automatic retry
+   * ============================================================================
+   * 
+   * Tries each credential in health-priority order until one succeeds.
+   * Automatically quarantines credentials that fail with auth errors.
+   * 
+   * @param symbol - Trading pair (e.g., "BTCUSDT")
+   * @param limit - Number of trades to fetch
+   * @param credentials - Array of available credentials
+   * @returns Trade array from first successful credential
+   */
+  private async fetchTradesWithCredentialFallback(
+    symbol: string,
+    limit: number,
+    credentials: Array<{ userId: string; exchange: string; apiKey: string; secretKey: string }>
+  ): Promise<any[]> {
+    // Sort credentials by health (healthy first, quarantined last)
+    const sortedCredentials = this.credentialHealth.sortByHealth(credentials);
+    
+    // Count how many credentials are NOT quarantined at the START
+    const initialHealthyCount = sortedCredentials.filter(s => s.priority < 1000).length;
+    let attemptedCount = 0;
+    
+    for (const { credential, priority } of sortedCredentials) {
+      attemptedCount++;
+      
+      // FIXED: Only skip quarantined if we haven't tried all healthy ones yet
+      // AND there are still untried healthy credentials
+      const remainingHealthy = initialHealthyCount - attemptedCount + (priority < 1000 ? 1 : 0);
+      if (priority >= 1000 && remainingHealthy > 0) {
+        this.logger.debug(
+          `⏭️ [${symbol}] Skipping quarantined credential ${credential.userId.substring(0, 8)}... (${remainingHealthy} healthy remaining)`
+        );
+        continue;
+      }
+      
+      try {
+        const trades = await this.binanceSignedService.getMyTrades(
+          symbol,
+          limit,
+          credential.apiKey,
+          credential.secretKey
+        );
+        
+        // Success! Record it and return
+        this.credentialHealth.recordSuccess(credential.userId, credential.exchange);
+        
+        return trades || [];
+        
+      } catch (error) {
+        const errorMsg = error?.message || String(error);
+        
+        // CRITICAL FIX: Don't quarantine for trade-history-specific 401s
+        // A 401 on myTrades might just mean missing "Enable Reading" permission,
+        // not that the whole API key is invalid.
+        // Only record as "soft failure" (won't trigger immediate quarantine)
+        const isSoftFailure = errorMsg.includes('401') && !errorMsg.includes('-2015');
+        
+        if (isSoftFailure) {
+          // Just log warning, don't record failure (preserves credential health)
+          this.logger.warn(
+            `⚠️ [${symbol}] Credential ${credential.userId.substring(0, 8)}... got 401 (possible permission issue, not quarantining)`
+          );
+        } else {
+          this.credentialHealth.recordFailure(credential.userId, credential.exchange, errorMsg);
+          this.logger.warn(
+            `⚠️ [${symbol}] Credential ${credential.userId.substring(0, 8)}... failed: ${errorMsg.substring(0, 80)}`
+          );
+        }
+        
+        // Continue to next credential
+      }
+    }
+    
+    // All credentials failed - return empty array (graceful degradation)
+    this.logger.warn(
+      `❌ [${symbol}] All ${credentials.length} credentials failed for trade history - using fallback`
+    );
+    return [];
   }
 
   /**

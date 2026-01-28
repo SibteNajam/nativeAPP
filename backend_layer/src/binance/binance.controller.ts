@@ -531,6 +531,7 @@ export class BinanceController {
         return this.binanceSignedService.getMyTrades(symbol, limit, credentials?.apiKey, credentials?.secretKey);
     }
 
+     
     @Get('all-orders')
     @ApiOperation({ summary: 'Get all orders for a symbol' })
     @ApiQuery({ name: 'symbol', required: true, example: 'BTCUSDT' })
@@ -858,7 +859,7 @@ export class BinanceController {
     @Post('cancel-all-orders')
     @ApiOperation({ summary: 'Cancel all open orders for a symbol (uses stored credentials)' })
     @ApiQuery({ name: 'symbol', required: true, example: 'BTCUSDT' })
-    async cancelAllOrders(@Query('symbol') symbol: string) {
+    async cancelAllOrders( @Query('symbol') symbol: string) {
         // Fetch user's BINANCE credentials from database
         // const credentials = await this.apiCredentialsService.getUserCredential(userId, 'binance' as any);
         // if (!credentials) {

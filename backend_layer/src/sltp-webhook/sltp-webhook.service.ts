@@ -215,48 +215,108 @@ export class SltpWebhookService {
                     // 3. Second SL found balance from a NEW entry and sold 4.78 tokens
                     // 4. Both exits were linked to the SAME entry (incorrect orderGroupId)
                     // =========================================================================
-                    if (entryOrder.orderGroupId) {
-                        const existingExits = await this.orderRepository.find({
-                            where: {
-                                orderGroupId: entryOrder.orderGroupId,
-                                side: 'SELL',
-                                status: 'FILLED',
-                            },
-                        });
-
-                        const alreadySold = existingExits.reduce(
-                            (sum, exit) => sum + parseFloat(exit.executedQty || '0'), 0
-                        );
-                        const entryQty = parseFloat(entryOrder.quantity || '0');
-                        const remainingQty = entryQty - alreadySold;
-
-                        // If already sold >= 95% of entry, position is closed - skip!
-                        if (remainingQty < entryQty * 0.05) {
-                            this.logger.warn(
-                                `${userLabel} 🚫 DOUBLE-SELL PREVENTION: Entry ${entryOrder.orderId} already has ` +
-                                `${existingExits.length} exit(s) totaling ${alreadySold.toFixed(4)} qty. ` +
-                                `Entry qty: ${entryQty.toFixed(4)}, Remaining: ${remainingQty.toFixed(4)}. ` +
-                                `SKIPPING ${trigger.trigger_type} to prevent over-selling!`
-                            );
-                            return {
-                                userId: cred.userId,
-                                exchange: cred.exchange,
-                                success: true,
-                                skipped: true,
-                                reason: 'position_already_closed'
-                            };
-                        }
-
-                        // Log remaining quantity for debugging
-                        this.logger.debug(
-                            `${userLabel} Position check: ${remainingQty.toFixed(4)} / ${entryQty.toFixed(4)} remaining ` +
-                            `(${existingExits.length} exits, ${alreadySold.toFixed(4)} sold)`
-                        );
-                    }
                 }
 
-                // Calculate quantity to sell based on trigger type
-                const quantityToSell = balance * trigger.quantity_pct;
+                // =========================================================================
+                // CRITICAL FIX (Jan 23, 2026): Cap quantity to entry's remaining qty
+                // =========================================================================
+                // ROOT CAUSE of DATA INTEGRITY ERRORS (SCRTUSDT, DUSKUSDT, etc.):
+                //   Previously: quantityToSell = balance * trigger.quantity_pct
+                //   This used TOTAL EXCHANGE BALANCE which includes MULTIPLE positions!
+                //
+                // Scenario that caused bug:
+                //   - Entry 1: Buy 78.5 SCRT
+                //   - Entry 2: Buy 110 SCRT  
+                //   - SL triggers for Entry 1 only
+                //   - Old code: Sell balance (188.5) but link to Entry 1
+                //   - Result: EXIT qty (188.5) > ENTRY qty (78.5) = IMPOSSIBLE
+                //
+                // FIX: Find entry, calculate remaining, cap sell at remaining
+                // =========================================================================
+                let quantityToSell = balance * trigger.quantity_pct;
+                let linkedEntryOrderId: number | bigint | string | null = null;
+                let linkedEntryGroupId: string | null = null;
+
+                // Find the latest FILLED ENTRY order for this user/symbol (re-query to get fresh data)
+                const latestEntry = await this.orderRepository.findOne({
+                    where: {
+                        userId: cred.userId,
+                        symbol: trigger.symbol,
+                        exchange: cred.exchange.toUpperCase(),
+                        side: 'BUY',
+                        orderRole: 'ENTRY',
+                        status: 'FILLED',
+                    },
+                    order: { filledTimestamp: 'DESC' },
+                });
+
+                if (latestEntry?.orderGroupId) {
+                    // Calculate how much has already been sold for THIS entry
+                    const existingExits = await this.orderRepository.find({
+                        where: {
+                            orderGroupId: latestEntry.orderGroupId,
+                            side: 'SELL',
+                            status: 'FILLED',
+                        },
+                    });
+
+                    const alreadySold = existingExits.reduce(
+                        (sum, exit) => sum + parseFloat(exit.executedQty || '0'), 0
+                    );
+                    const entryQty = parseFloat(latestEntry.quantity || '0');
+                    const remainingQty = Math.max(0, entryQty - alreadySold);
+
+                    // If already sold >= 95% of entry, position is closed - skip!
+                    if (remainingQty < entryQty * 0.05) {
+                        this.logger.warn(
+                            `${userLabel} 🚫 DOUBLE-SELL PREVENTION: Entry ${latestEntry.orderId} already has ` +
+                            `${existingExits.length} exit(s) totaling ${alreadySold.toFixed(4)} qty. ` +
+                            `Entry qty: ${entryQty.toFixed(4)}, Remaining: ${remainingQty.toFixed(4)}. ` +
+                            `SKIPPING ${trigger.trigger_type} to prevent over-selling!`
+                        );
+                        return {
+                            userId: cred.userId,
+                            exchange: cred.exchange,
+                            success: true,
+                            skipped: true,
+                            reason: 'position_already_closed'
+                        };
+                    }
+
+                    // CAP quantity to sell at remaining qty for THIS entry
+                    const desiredSellQty = balance * trigger.quantity_pct;
+                    if (desiredSellQty > remainingQty) {
+                        this.logger.warn(
+                            `${userLabel} ⚠️ QUANTITY CAPPED: Wanted ${desiredSellQty.toFixed(4)} ` +
+                            `(${(trigger.quantity_pct * 100).toFixed(0)}% of balance ${balance.toFixed(4)}), ` +
+                            `but capping to ${remainingQty.toFixed(4)} (remaining for entry ${latestEntry.orderId})`
+                        );
+                        quantityToSell = remainingQty;
+                    }
+
+                    // Safety: If remaining qty is tiny (dust), skip
+                    if (quantityToSell < 0.0001) {
+                        this.logger.warn(
+                            `${userLabel} 🚫 QUANTITY TOO SMALL: ${quantityToSell.toFixed(6)} ` +
+                            `is below dust threshold. Skipping.`
+                        );
+                        return {
+                            userId: cred.userId,
+                            exchange: cred.exchange,
+                            success: true,
+                            skipped: true,
+                            reason: 'insufficient_remaining_qty'
+                        };
+                    }
+
+                    linkedEntryOrderId = latestEntry.orderId;
+                    linkedEntryGroupId = latestEntry.orderGroupId;
+
+                    this.logger.debug(
+                        `${userLabel} Position check: ${remainingQty.toFixed(4)} / ${entryQty.toFixed(4)} remaining ` +
+                        `(${existingExits.length} exits, ${alreadySold.toFixed(4)} sold)`
+                    );
+                }
 
                 this.logger.log(`${userLabel} Selling ${quantityToSell} ${trigger.symbol} (${trigger.quantity_pct * 100}% of ${balance})`);
 

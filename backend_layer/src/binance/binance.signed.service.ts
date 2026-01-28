@@ -181,10 +181,11 @@ export class BinanceSignedService {
     const query = `symbol=${symbol}&limit=${limit}&timestamp=${timestamp}`;
     const signature = crypto.createHmac('sha256', secretKeyToUse).update(query).digest('hex');
 
-    const url = `${this.BASE_URL_TEST}/api/v3/myTrades?${query}&signature=${signature}`;
+    // FIXED: Use production BASE_URL, not testnet (BASE_URL_TEST causes 401 with real keys)
+    const url = `${this.BASE_URL}/api/v3/myTrades?${query}&signature=${signature}`;
 
     const { data } = await firstValueFrom(
-      this.http.get(url, { headers: { 'X-MBX-APIKEY': apiKeyToUse } }),
+      this.http.get(url, { headers: { 'X-MBX-APIKEY': apiKeyToUse }, timeout: 10000 }),
     );
 
     return data;
@@ -502,28 +503,30 @@ export class BinanceSignedService {
 
   /**
    * Get trading status
+   * FIXED: Use production URL and production keys
    */
-  async getTradingStatus() {
-    const apiKey = this.configService.get<string>('BINANCE_TESTNET_API_KEY');
-    const secretKey = this.configService.get<string>('BINANCE_TESTNET_SECRET_KEY');
+  async getTradingStatus(apiKey?: string, secretKey?: string) {
+    const apiKeyToUse = apiKey || this.configService.get<string>('BINANCE_API_KEY');
+    const secretKeyToUse = secretKey || this.configService.get<string>('BINANCE_SECRET_KEY');
 
-    if (!apiKey || !secretKey) {
+    if (!apiKeyToUse || !secretKeyToUse) {
       throw new Error('Binance API key or secret is missing in environment variables');
     }
 
     try {
-      const timestamp = Date.now();
+      const timestamp = await this.getServerTime();
       const query = `timestamp=${timestamp}`;
       const signature = crypto
-        .createHmac('sha256', secretKey)
+        .createHmac('sha256', secretKeyToUse)
         .update(query)
         .digest('hex');
 
+      // FIXED: Use production BASE_URL, not testnet
       const { data } = await firstValueFrom(
         this.http.get(
-          `${this.BASE_URL_TEST}/sapi/v1/account/apiTradingStatus?${query}&signature=${signature}`,
+          `${this.BASE_URL}/sapi/v1/account/apiTradingStatus?${query}&signature=${signature}`,
           {
-            headers: { 'X-MBX-APIKEY': apiKey },
+            headers: { 'X-MBX-APIKEY': apiKeyToUse },
             timeout: 10000,
           },
         ),
@@ -909,9 +912,11 @@ export class BinanceSignedService {
     const accountSig = crypto.createHmac('sha256', secretKeyToUse).update(accountQuery).digest('hex');
 
     // 1. Get account balances
+    // FIXED: Use production BASE_URL, not testnet
     const accountRes = await firstValueFrom(
-      this.http.get(`${this.BASE_URL_TEST}/api/v3/account?${accountQuery}&signature=${accountSig}`, {
+      this.http.get(`${this.BASE_URL}/api/v3/account?${accountQuery}&signature=${accountSig}`, {
         headers: { 'X-MBX-APIKEY': apiKey },
+        timeout: 10000,
       }),
     );
     const accountData = accountRes.data;
@@ -933,9 +938,11 @@ export class BinanceSignedService {
         });
         const sig = crypto.createHmac('sha256', secretKeyToUse).update(params.toString()).digest('hex');
 
+        // FIXED: Use production BASE_URL, not testnet
         const { data } = await firstValueFrom(
-          this.http.get(`${this.BASE_URL_TEST}/api/v3/allOrders?${params.toString()}&signature=${sig}`, {
+          this.http.get(`${this.BASE_URL}/api/v3/allOrders?${params.toString()}&signature=${sig}`, {
             headers: { 'X-MBX-APIKEY': apiKey },
+            timeout: 10000,
           }),
         );
 
@@ -1187,31 +1194,33 @@ export class BinanceSignedService {
 
   /**
    * Get asset details
+   * FIXED: Use production URL and production keys
    */
-  async getAssetDetail(asset?: string) {
-    const apiKey = this.configService.get<string>('BINANCE_TESTNET_API_KEY');
-    const secretKey = this.configService.get<string>('BINANCE_TESTNET_SECRET_KEY');
+  async getAssetDetail(asset?: string, apiKey?: string, secretKey?: string) {
+    const apiKeyToUse = apiKey || this.configService.get<string>('BINANCE_API_KEY');
+    const secretKeyToUse = secretKey || this.configService.get<string>('BINANCE_SECRET_KEY');
 
-    if (!apiKey || !secretKey) {
+    if (!apiKeyToUse || !secretKeyToUse) {
       throw new Error('Binance API key or secret is missing in environment variables');
     }
 
     try {
-      const timestamp = Date.now();
+      const timestamp = await this.getServerTime();
       let query = `timestamp=${timestamp}`;
 
       if (asset) query += `&asset=${asset}`;
 
       const signature = crypto
-        .createHmac('sha256', secretKey)
+        .createHmac('sha256', secretKeyToUse)
         .update(query)
         .digest('hex');
 
+      // FIXED: Use production BASE_URL, not testnet
       const { data } = await firstValueFrom(
         this.http.get(
-          `${this.BASE_URL_TEST}/sapi/v1/asset/assetDetail?${query}&signature=${signature}`,
+          `${this.BASE_URL}/sapi/v1/asset/assetDetail?${query}&signature=${signature}`,
           {
-            headers: { 'X-MBX-APIKEY': apiKey },
+            headers: { 'X-MBX-APIKEY': apiKeyToUse },
             timeout: 10000,
           },
         ),
@@ -1226,31 +1235,33 @@ export class BinanceSignedService {
 
   /**
    * Get trade fee
+   * FIXED: Use production URL and production keys (testnet doesn't support this endpoint)
    */
-  async getTradeFee(symbol?: string) {
-    const apiKey = this.configService.get<string>('BINANCE_TESTNET_API_KEY');
-    const secretKey = this.configService.get<string>('BINANCE_TESTNET_SECRET_KEY');
+  async getTradeFee(symbol?: string, apiKey?: string, secretKey?: string) {
+    const apiKeyToUse = apiKey || this.configService.get<string>('BINANCE_API_KEY');
+    const secretKeyToUse = secretKey || this.configService.get<string>('BINANCE_SECRET_KEY');
 
-    if (!apiKey || !secretKey) {
+    if (!apiKeyToUse || !secretKeyToUse) {
       throw new Error('Binance API key or secret is missing in environment variables');
     }
 
     try {
-      const timestamp = Date.now();
+      const timestamp = await this.getServerTime();
       let query = `timestamp=${timestamp}`;
 
       if (symbol) query += `&symbol=${symbol}`;
 
       const signature = crypto
-        .createHmac('sha256', secretKey)
+        .createHmac('sha256', secretKeyToUse)
         .update(query)
         .digest('hex');
 
+      // FIXED: Use production BASE_URL, not testnet
       const { data } = await firstValueFrom(
         this.http.get(
-          `${this.BASE_URL_TEST}/sapi/v1/asset/tradeFee?${query}&signature=${signature}`,
+          `${this.BASE_URL}/sapi/v1/asset/tradeFee?${query}&signature=${signature}`,
           {
-            headers: { 'X-MBX-APIKEY': apiKey },
+            headers: { 'X-MBX-APIKEY': apiKeyToUse },
             timeout: 10000,
           },
         ),
