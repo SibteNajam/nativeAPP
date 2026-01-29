@@ -29,10 +29,9 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                 <MotiView
                     from={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ 
-                        type: 'spring', 
-                        damping: 20,
-                        stiffness: 200,
+                    transition={{
+                        type: 'timing',
+                        duration: 300,
                     }}
                     style={styles.container}
                 >
@@ -45,9 +44,8 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                             from={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{
-                                type: 'spring',
-                                damping: 18,
-                                stiffness: 150,
+                                type: 'timing',
+                                duration: 300,
                                 delay: 100,
                             }}
                             style={[
@@ -61,8 +59,8 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                                 from={{ scale: 0.8 }}
                                 animate={{ scale: 1 }}
                                 transition={{
-                                    type: 'spring',
-                                    damping: 15,
+                                    type: 'timing',
+                                    duration: 250,
                                     delay: 300,
                                 }}
                             >
@@ -94,9 +92,8 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                                         scale: [0, 1, 0.5],
                                     }}
                                     transition={{
-                                        type: 'spring',
-                                        damping: 15,
-                                        stiffness: 100,
+                                        type: 'timing',
+                                        duration: 400,
                                         delay: 500 + i * 40,
                                     }}
                                     style={[
@@ -106,8 +103,8 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                                                 i % 3 === 0
                                                     ? colors.primary
                                                     : i % 3 === 1
-                                                    ? colors.success
-                                                    : colors.accent,
+                                                        ? colors.success
+                                                        : colors.accent,
                                         },
                                     ]}
                                 />
@@ -118,9 +115,9 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                         <MotiView
                             from={{ opacity: 0, translateY: 10 }}
                             animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ 
-                                type: 'spring', 
-                                damping: 20,
+                            transition={{
+                                type: 'timing',
+                                duration: 300,
                                 delay: 600,
                             }}
                         >
@@ -136,9 +133,9 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                         <MotiView
                             from={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ 
-                                type: 'spring', 
-                                damping: 20,
+                            transition={{
+                                type: 'timing',
+                                duration: 300,
                                 delay: 900,
                             }}
                             style={styles.statsRow}
@@ -175,9 +172,9 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                         <MotiView
                             from={{ opacity: 0, translateY: 10 }}
                             animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ 
-                                type: 'spring', 
-                                damping: 20,
+                            transition={{
+                                type: 'timing',
+                                duration: 300,
                                 delay: 1200,
                             }}
                         >
@@ -209,9 +206,9 @@ export default function SuccessModal({ visible, onContinue }: SuccessModalProps)
                         <MotiView
                             from={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ 
-                                type: 'timing', 
-                                duration: 400, 
+                            transition={{
+                                type: 'timing',
+                                duration: 400,
                                 delay: 1500,
                             }}
                             style={styles.trustBadge}

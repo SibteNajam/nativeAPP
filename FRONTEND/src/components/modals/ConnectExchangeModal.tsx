@@ -198,7 +198,7 @@ export default function ConnectExchangeModal({
                     <MotiView
                         from={{ translateY: 400, opacity: 0 }}
                         animate={{ translateY: 0, opacity: 1 }}
-                        transition={{ type: 'spring', damping: 20 }}
+                        transition={{ type: 'timing', duration: 300 }}
                         style={[styles.formSheet, { backgroundColor: colors.background }]}
                     >
                         {/* Header */}
