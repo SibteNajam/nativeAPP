@@ -32,6 +32,21 @@ export class AuthService {
     };
     return this.jwtService.signAsync({}, opts);
   }
+
+  public async generateRefreshTokenWithEntity(user: User): Promise<{ jwt: string; tokenEntity: RefreshToken }> {
+    const tokenEntity = await this.refreshTokenService.createRefreshToken(
+      user,
+      31556926,
+    );
+    const opts: SignOptions = {
+      ...BASE_OPTIONS,
+      expiresIn: JWT_REFRESH_EXPIRY,
+      subject: String(user.id),
+      jwtid: String(tokenEntity.id),
+    };
+    const jwt = await this.jwtService.signAsync({}, opts);
+    return { jwt, tokenEntity };
+  }
   public async generateAccessToken(user: User): Promise<string> {
     const opts: SignOptions = {
       ...BASE_OPTIONS,
@@ -57,8 +72,15 @@ export class AuthService {
    * Revokes all refresh tokens for a user.
    * Used for logout functionality.
    */
-  async revokeAllUserTokens(userId: string) {
-    return this.refreshTokenService.revokeAllUserTokens(userId);
+  async revokeAllUserTokens(userId: string, excludeBiometric: boolean = true) {
+    return this.refreshTokenService.revokeAllUserTokens(userId, excludeBiometric);
+  }
+
+  /**
+   * Revoke a specific refresh token by ID
+   */
+  async revokeToken(tokenId: string) {
+    return this.refreshTokenService.revokeToken(tokenId);
   }
 
   /**

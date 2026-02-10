@@ -385,6 +385,165 @@ export const authApi = {
             };
         }
     },
+
+    /**
+     * Register device for biometric authentication
+     */
+    async registerBiometricDevice(data: {
+        deviceId: string;
+        deviceName: string;
+        deviceType: string;
+        biometricType?: string;
+    }): Promise<{ success: boolean; deviceToken?: string; message?: string }> {
+        try {
+            const response = await api.post('/auth/biometric/register', data);
+            
+            const deviceToken = response.data?.data?.deviceToken;
+            
+            if (!deviceToken) {
+                console.error('Biometric registration response missing deviceToken:', response.data);
+                return {
+                    success: false,
+                    message: 'Registration failed: No device token received',
+                };
+            }
+
+            return {
+                success: true,
+                deviceToken,
+                message: response.data?.message || 'Biometric device registered successfully',
+            };
+        } catch (error: any) {
+            console.error('Register biometric device error:', error.response?.data || error.message);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to register biometric device',
+            };
+        }
+    },
+
+    /**
+     * Login with biometric device
+     */
+    async loginWithBiometric(deviceId: string, deviceToken: string): Promise<AuthResponse> {
+        try {
+            const response = await api.post('/auth/biometric/login', {
+                deviceId,
+                deviceToken,
+            });
+
+            // Parse nested response structure (similar to regular login)
+            const responseData = response.data;
+            let user, payload;
+
+            if (responseData.data?.data?.user) {
+                user = responseData.data.data.user;
+                payload = responseData.data.data.payload;
+            } else if (responseData.data?.user) {
+                user = responseData.data.user;
+                payload = responseData.data.payload;
+            } else if (responseData.user) {
+                user = responseData.user;
+                payload = responseData.payload;
+            } else {
+                console.error('Unexpected biometric login response structure:', responseData);
+                return {
+                    success: false,
+                    message: 'Biometric login failed: Unexpected response format',
+                };
+            }
+
+            const accessToken = payload?.token;
+            const refreshToken = payload?.refresh_token;
+
+            if (!accessToken) {
+                console.error('Biometric login response missing token');
+                return {
+                    success: false,
+                    message: 'Biometric login failed: No token received',
+                };
+            }
+
+            // Store tokens securely
+            await authStorage.setTokens(accessToken, refreshToken);
+
+            // Map user fields
+            const mappedUser: User = {
+                id: user.id,
+                email: user.email,
+                firstName: user.name || user.firstName || 'User',
+                lastName: user.lastName || '',
+                isVerified: user.isVerified ?? true,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+            };
+
+            return {
+                success: true,
+                message: 'Biometric login successful',
+                user: mappedUser,
+                tokens: {
+                    accessToken,
+                    refreshToken,
+                    expiresIn: 604800,
+                },
+            };
+        } catch (error: any) {
+            console.error('Biometric login error:', error.response?.data || error.message);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Biometric authentication failed',
+            };
+        }
+    },
+
+    /**
+     * Get all biometric devices for current user
+     */
+    async getBiometricDevices(): Promise<{
+        success: boolean;
+        devices?: any[];
+        message?: string;
+    }> {
+        try {
+            const response = await api.get('/auth/biometric/devices');
+            return {
+                success: true,
+                devices: response.data?.data?.devices || [],
+            };
+        } catch (error: any) {
+            console.error('Get biometric devices error:', error.response?.data || error.message);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch devices',
+            };
+        }
+    },
+
+    /**
+     * Revoke a biometric device
+     */
+    async revokeBiometricDevice(deviceId: string, reason?: string): Promise<{
+        success: boolean;
+        message?: string;
+    }> {
+        try {
+            const response = await api.post('/auth/biometric/revoke', {
+                deviceId,
+                reason,
+            });
+            return {
+                success: true,
+                message: response.data?.message || 'Device revoked successfully',
+            };
+        } catch (error: any) {
+            console.error('Revoke biometric device error:', error.response?.data || error.message);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to revoke device',
+            };
+        }
+    },
 };
 
 export default authApi;

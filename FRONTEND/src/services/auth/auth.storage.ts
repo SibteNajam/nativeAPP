@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 const TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const BIOMETRIC_ENABLED_KEY = 'is_biometric_enabled';
+const DEVICE_TOKEN_KEY = 'biometric_device_token';
+const DEVICE_ID_KEY = 'biometric_device_id';
 
 /**
  * Web Storage Helper
@@ -76,10 +78,12 @@ export const authStorage = {
         if (Platform.OS === 'web') {
             webStorage.removeItem(TOKEN_KEY);
             webStorage.removeItem(REFRESH_TOKEN_KEY);
+            webStorage.removeItem(DEVICE_TOKEN_KEY);
             return;
         }
         await SecureStore.deleteItemAsync(TOKEN_KEY);
         await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+        // Note: We keep DEVICE_TOKEN_KEY and DEVICE_ID for biometric re-login
     },
 
     /**
@@ -102,5 +106,62 @@ export const authStorage = {
             return;
         }
         await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, String(enabled));
+    },
+
+    /**
+     * Store device token for biometric authentication
+     */
+    async setDeviceToken(deviceToken: string) {
+        if (Platform.OS === 'web') {
+            webStorage.setItem(DEVICE_TOKEN_KEY, deviceToken);
+            return;
+        }
+        await SecureStore.setItemAsync(DEVICE_TOKEN_KEY, deviceToken);
+    },
+
+    /**
+     * Get device token for biometric authentication
+     */
+    async getDeviceToken(): Promise<string | null> {
+        if (Platform.OS === 'web') {
+            return webStorage.getItem(DEVICE_TOKEN_KEY);
+        }
+        return await SecureStore.getItemAsync(DEVICE_TOKEN_KEY);
+    },
+
+    /**
+     * Store device ID
+     */
+    async setDeviceId(deviceId: string) {
+        if (Platform.OS === 'web') {
+            webStorage.setItem(DEVICE_ID_KEY, deviceId);
+            return;
+        }
+        await SecureStore.setItemAsync(DEVICE_ID_KEY, deviceId);
+    },
+
+    /**
+     * Get device ID
+     */
+    async getDeviceId(): Promise<string | null> {
+        if (Platform.OS === 'web') {
+            return webStorage.getItem(DEVICE_ID_KEY);
+        }
+        return await SecureStore.getItemAsync(DEVICE_ID_KEY);
+    },
+
+    /**
+     * Clear biometric data (for logout or disable biometric)
+     */
+    async clearBiometricData() {
+        if (Platform.OS === 'web') {
+            webStorage.removeItem(DEVICE_TOKEN_KEY);
+            webStorage.removeItem(DEVICE_ID_KEY);
+            webStorage.removeItem(BIOMETRIC_ENABLED_KEY);
+            return;
+        }
+        await SecureStore.deleteItemAsync(DEVICE_TOKEN_KEY);
+        await SecureStore.deleteItemAsync(DEVICE_ID_KEY);
+        await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
     }
 };

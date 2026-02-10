@@ -33,6 +33,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { User } from './user/entities/user.entity';
 import { RefreshToken } from './auth/entities/refreshToken.entity';
+import { BiometricDevice } from './auth/entities/biometric-device.entity';
 import { ApiCredential } from './apicredentials/entities/api-credential.entity';
 import { APP_GUARD } from '@nestjs/core';
 import { JWTGuard } from './guards/jwt.guard';
@@ -81,6 +82,7 @@ const shouldSkipDb = process.env.SKIP_DB === 'true';
               OpenOrder,
               User,
               RefreshToken,
+              BiometricDevice,
               ApiCredential,
               Order
             ],

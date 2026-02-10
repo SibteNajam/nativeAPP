@@ -3,7 +3,7 @@
  * Clean login form with proper validation
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -12,6 +12,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { TextInput, Button, IconButton, HelperText } from 'react-native-paper';
@@ -25,12 +26,15 @@ import { useTheme } from '@/contexts/ThemeContext';
 // Auth
 import { useAuth } from '@/contexts/AuthContext';
 
+// Biometric
+import { biometricService } from '@/services/auth/biometric.service';
+
 // Validation
 import { validateLoginForm, hasErrors, FormErrors } from '@/utils/validation';
 
 export default function LoginScreen() {
     const { colors, isDark, toggleTheme } = useTheme();
-    const { login, isLoading, error, clearError } = useAuth();
+    const { login, loginWithBiometric, isLoading, error, clearError } = useAuth();
 
     // Form state
     const [email, setEmail] = useState('');
@@ -40,6 +44,59 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
+    const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+    /**
+     * Check if biometric is available
+     */
+    useEffect(() => {
+        checkBiometric();
+    }, []);
+
+    const checkBiometric = async () => {
+        // Check if device has biometric AND it's configured (registered)
+        const isConfigured = await biometricService.isBiometricConfigured();
+        // Also check if hardware is available (for iOS simulator setup)
+        const isAvailable = await biometricService.isBiometricAvailable();
+        
+        // Show button if either configured OR available hardware
+        setBiometricAvailable(isConfigured || isAvailable);
+    };
+
+    /**
+     * Handle biometric login
+     */
+    const handleBiometricLogin = async () => {
+        if (!loginWithBiometric) return;
+        
+        try {
+            // Check if biometric is configured
+            const isConfigured = await biometricService.isBiometricConfigured();
+            
+            if (!isConfigured) {
+                // Not configured yet - show alert
+                Alert.alert(
+                    'Biometric Not Set Up',
+                    'Please sign in with email/password first, then enable biometric authentication in Settings.',
+                    [{ text: 'OK' }]
+                );
+                return;
+            }
+            
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
+            const result = await loginWithBiometric();
+            
+            if (result.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
+        } catch (error) {
+            console.error('Biometric login error:', error);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+    };
 
     /**
      * Handle field blur - mark field as touched for validation display
@@ -188,9 +245,12 @@ export default function LoginScreen() {
                             left={<TextInput.Icon icon="email" color={colors.textLight} />}
                         />
                         {getFieldError('email') && (
-                            <HelperText type="error" visible>
-                                {getFieldError('email')}
-                            </HelperText>
+                            <>
+                                {/* @ts-ignore - react-native-paper HelperText type inference issue */}
+                                <HelperText type="error" visible={true}>
+                                    {getFieldError('email')}
+                                </HelperText>
+                            </>
                         )}
                     </View>
 
@@ -219,9 +279,12 @@ export default function LoginScreen() {
                             }
                         />
                         {getFieldError('password') && (
-                            <HelperText type="error" visible>
-                                {getFieldError('password')}
-                            </HelperText>
+                            <>
+                                {/* @ts-ignore - react-native-paper HelperText type inference issue */}
+                                <HelperText type="error" visible={true}>
+                                    {getFieldError('password')}
+                                </HelperText>
+                            </>
                         )}
                     </View>
 
@@ -233,6 +296,7 @@ export default function LoginScreen() {
                     </Pressable>
 
                     {/* Submit Button */}
+                    {/* @ts-ignore - react-native-paper Button type inference issue */}
                     <Button
                         mode="contained"
                         onPress={handleLogin}
@@ -246,6 +310,31 @@ export default function LoginScreen() {
                         {isLoading ? 'Signing In...' : 'Sign In'}
                     </Button>
 
+                    {/* Biometric Login Button */}
+                    {biometricAvailable && (
+                        <Pressable
+                            onPress={handleBiometricLogin}
+                            disabled={isLoading}
+                            style={({ pressed }) => [
+                                styles.biometricButton,
+                                { 
+                                    opacity: pressed ? 0.7 : 1,
+                                    borderColor: colors.border,
+                                },
+                                isLoading && { opacity: 0.5 }
+                            ]}
+                        >
+                            <MaterialCommunityIcons 
+                                name="fingerprint" 
+                                size={24} 
+                                color={colors.primary} 
+                            />
+                            <Text style={[styles.biometricText, { color: colors.text }]}>
+                                Sign in with Biometric
+                            </Text>
+                        </Pressable>
+                    )}
+
                     {/* Divider */}
                     <View style={styles.divider}>
                         <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
@@ -254,6 +343,7 @@ export default function LoginScreen() {
                     </View>
 
                     {/* Social Login Placeholder */}
+                    {/* @ts-ignore - react-native-paper Button type inference issue */}
                     <Button
                         mode="outlined"
                         onPress={() => { }}
@@ -276,7 +366,7 @@ export default function LoginScreen() {
                     style={styles.footer}
                 >
                     <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                        Don't have an account?{' '}
+                        Don&apos;t have an account?{' '}
                     </Text>
                     <Pressable onPress={handleSignUp}>
                         <Text style={[styles.footerLink, { color: colors.primary }]}>Sign Up</Text>
@@ -360,6 +450,20 @@ const styles = StyleSheet.create({
     },
     submitButtonLabel: {
         fontSize: 17,
+        fontWeight: '600',
+    },
+    biometricButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 56,
+        borderRadius: 28,
+        borderWidth: 1.5,
+        marginTop: 12,
+        gap: 12,
+    },
+    biometricText: {
+        fontSize: 15,
         fontWeight: '600',
     },
     divider: {

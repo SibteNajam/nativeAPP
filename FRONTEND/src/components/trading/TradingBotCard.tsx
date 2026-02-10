@@ -518,7 +518,7 @@ export default function TradingBotCard({ onStatusChange }: TradingBotCardProps) 
                             <Text style={[styles.statText, { color: todayPnL >= 0 ? colors.success : colors.error }]}>
                                 ${todayPnL.toFixed(2)}
                             </Text>
-                            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Today's P/L</Text>
+                            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Today&apos;s P/L</Text>
                         </View>
                         <View style={[styles.statItem, { backgroundColor: colors.surfaceLight }]}>
                             <MaterialCommunityIcons name="repeat" size={20} color={colors.primaryLight} />

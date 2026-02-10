@@ -175,7 +175,7 @@ export default function OTPVerificationScreen() {
                 setOtp(Array(OTP_LENGTH).fill(''));
                 inputRefs.current[0]?.focus();
             }
-        } catch (error) {
+        } catch {
             setError('Verification failed. Please try again.');
             triggerShake();
             setOtp(Array(OTP_LENGTH).fill(''));
@@ -204,7 +204,7 @@ export default function OTPVerificationScreen() {
             } else {
                 setError(response.message || 'Failed to resend OTP');
             }
-        } catch (error) {
+        } catch {
             setError('Failed to resend OTP. Please try again.');
         } finally {
             setLoading(false);
@@ -244,7 +244,7 @@ export default function OTPVerificationScreen() {
                 {/* Title and Description */}
                 <Text style={[styles.title, { color: colors.text }]}>Enter Verification Code</Text>
                 <Text style={[styles.description, { color: colors.textSecondary }]}>
-                    We've sent a 6-digit code to{'\n'}
+                    We&apos;ve sent a 6-digit code to{'\n'}
                     <Text style={[styles.email, { color: colors.primary }]}>{email}</Text>
                 </Text>
 
@@ -274,9 +274,10 @@ export default function OTPVerificationScreen() {
                     ]}
                 >
                     {otp.map((digit, index) => (
+                        /* @ts-ignore - React Native TextInput key prop and ref type false positives */
                         <TextInput
                             key={index}
-                            ref={(ref) => {
+                            ref={(ref: any) => {
                                 if (ref) inputRefs.current[index] = ref;
                             }}
                             style={[
@@ -330,7 +331,7 @@ export default function OTPVerificationScreen() {
 
                 {/* Resend OTP */}
                 <View style={styles.resendContainer}>
-                    <Text style={[styles.resendText, { color: colors.textSecondary }]}>Didn't receive the code? </Text>
+                    <Text style={[styles.resendText, { color: colors.textSecondary }]}>Didn&apos;t receive the code? </Text>
                     <TouchableOpacity
                         onPress={handleResendOTP}
                         disabled={loading || resendCooldown > 0}

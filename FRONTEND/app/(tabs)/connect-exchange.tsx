@@ -291,7 +291,7 @@ export default function ConnectExchangeScreen() {
                                 Welcome, {user?.firstName}! 🎉
                             </Text>
                             <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>
-                                Let's get you started! Connect your exchange API keys to enable automated trading with your bot.
+                                Let&apos;s get you started! Connect your exchange API keys to enable automated trading with your bot.
                             </Text>
                         </Surface>
                     </MotiView>

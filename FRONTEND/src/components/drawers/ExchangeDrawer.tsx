@@ -32,6 +32,7 @@ import Animated, {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useExchange } from '@/contexts/ExchangeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 import {
     ExchangeType,
     CredentialResponse,
@@ -56,6 +57,7 @@ export default function ExchangeDrawer({
 }: ExchangeDrawerProps) {
     const { colors } = useTheme();
     const { user, logout } = useAuth();
+    const router = useRouter();
     const {
         selectedExchange,
         connectedExchanges,
@@ -278,6 +280,16 @@ export default function ExchangeDrawer({
 
                         {/* Bottom */}
                         <View style={styles.bottomActions}>
+                            <Pressable
+                                style={({ pressed }) => [styles.bottomActionItem, pressed && { opacity: 0.7 }]}
+                                onPress={() => { 
+                                    onClose(); 
+                                    router.push('/(tabs)/settings');
+                                }}
+                            >
+                                <MaterialCommunityIcons name="cog-outline" size={18} color={colors.text} />
+                                <Text style={[styles.bottomActionText, { color: colors.text }]}>Settings</Text>
+                            </Pressable>
 
                             <Pressable
                                 style={({ pressed }) => [styles.bottomActionItem, pressed && { opacity: 0.7 }]}

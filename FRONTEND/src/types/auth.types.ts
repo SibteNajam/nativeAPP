@@ -104,8 +104,14 @@ export interface AuthContextType {
     refreshSession: () => Promise<boolean>;
     clearError: () => void;
 
-    // Future extensibility
+    // Biometric authentication
+    enableBiometric?: () => Promise<{ success: boolean; message: string }>;
+    disableBiometric?: () => Promise<{ success: boolean; message: string }>;
+    loginWithBiometric?: () => Promise<AuthResponse>;
+
+    // OTP verification
     verifyOTP?: (data: VerifyOTPRequest) => Promise<AuthResponse>;
+    
+    // Social login (future)
     loginWithGoogle?: () => Promise<AuthResponse>;
-    loginWithBiometrics?: () => Promise<AuthResponse>;
 }

@@ -82,7 +82,7 @@ export default function PricingPlans() {
                     Choose Your Plan
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    Start free, upgrade when you're ready
+                    Start free, upgrade when you&apos;re ready
                 </Text>
             </MotiView>
 

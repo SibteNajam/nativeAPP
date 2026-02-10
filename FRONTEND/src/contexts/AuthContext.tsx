@@ -8,6 +8,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { router } from 'expo-router';
 import { authApi } from '@/services/api/auth.api';
 import { authStorage } from '@/services/auth/auth.storage';
+import { biometricService } from '@/services/auth/biometric.service';
+import { Platform } from 'react-native';
 import {
     AuthContextType,
     AuthStatus,
@@ -73,6 +75,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
         try {
             setStatus('loading');
+
+            // Check if biometric is enabled and configured
+            const isBiometricEnabled = await authStorage.getIsBiometricEnabled();
+            const isBiometricConfigured = await biometricService.isBiometricConfigured();
+
+            if (isBiometricEnabled && isBiometricConfigured) {
+                // Try biometric authentication first
+                console.log('Biometric is configured, attempting biometric login...');
+                
+                const biometricResult = await loginWithBiometric();
+                
+                if (biometricResult.success) {
+                    // Biometric login successful
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // If biometric fails, fall through to token check
+                console.log('Biometric login failed, checking for existing token...');
+            }
 
             // Check if we have a stored token
             const token = await authStorage.getToken();
@@ -256,6 +278,165 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, []);
 
+    /**
+     * Enable biometric authentication for current user
+     * Must be called after successful login
+     */
+    const enableBiometric = useCallback(async (): Promise<{
+        success: boolean;
+        message: string;
+    }> => {
+        try {
+            // 1. Check if biometric hardware is available
+            const isAvailable = await biometricService.isBiometricAvailable();
+            if (!isAvailable) {
+                return {
+                    success: false,
+                    message: 'Biometric authentication is not available on this device',
+                };
+            }
+
+            // 2. Get or create device ID
+            const deviceId = await biometricService.getOrCreateDeviceId();
+            const deviceName = biometricService.getDeviceName();
+            const deviceType = Platform.OS;
+            const biometricType = await biometricService.getBiometricTypeString();
+
+            // 3. Register device with backend
+            const response = await authApi.registerBiometricDevice({
+                deviceId,
+                deviceName,
+                deviceType,
+                biometricType,
+            });
+
+            if (!response.success || !response.deviceToken) {
+                return {
+                    success: false,
+                    message: response.message || 'Failed to register biometric device',
+                };
+            }
+
+            // 4. Store device token securely
+            await authStorage.setDeviceToken(response.deviceToken);
+            await authStorage.setBiometricEnabled(true);
+
+            console.log('Biometric enabled successfully');
+
+            return {
+                success: true,
+                message: 'Biometric authentication enabled',
+            };
+        } catch (error: any) {
+            console.error('Enable biometric error:', error);
+            return {
+                success: false,
+                message: error.message || 'Failed to enable biometric authentication',
+            };
+        }
+    }, []);
+
+    /**
+     * Disable biometric authentication
+     */
+    const disableBiometric = useCallback(async (): Promise<{
+        success: boolean;
+        message: string;
+    }> => {
+        try {
+            const deviceId = await authStorage.getDeviceId();
+            
+            if (deviceId) {
+                // Optionally revoke device on backend
+                await authApi.revokeBiometricDevice(deviceId, 'User disabled biometric');
+            }
+
+            // Clear local biometric data
+            await authStorage.clearBiometricData();
+
+            console.log('Biometric disabled successfully');
+
+            return {
+                success: true,
+                message: 'Biometric authentication disabled',
+            };
+        } catch (error: any) {
+            console.error('Disable biometric error:', error);
+            return {
+                success: false,
+                message: error.message || 'Failed to disable biometric authentication',
+            };
+        }
+    }, []);
+
+    /**
+     * Login with biometric authentication
+     * Called when app opens and biometric is enabled
+     */
+    const loginWithBiometric = useCallback(async (): Promise<AuthResponse> => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            // 1. Check if biometric is configured
+            const isConfigured = await biometricService.isBiometricConfigured();
+            if (!isConfigured) {
+                return {
+                    success: false,
+                    message: 'Biometric authentication not configured',
+                };
+            }
+
+            // 2. Prompt for biometric authentication
+            const biometricName = await biometricService.getBiometricName();
+            const authenticated = await biometricService.authenticate(
+                `Unlock with ${biometricName}`
+            );
+
+            if (!authenticated) {
+                return {
+                    success: false,
+                    message: 'Biometric authentication cancelled or failed',
+                };
+            }
+
+            // 3. Get stored device credentials
+            const deviceId = await authStorage.getDeviceId();
+            const deviceToken = await authStorage.getDeviceToken();
+
+            if (!deviceId || !deviceToken) {
+                return {
+                    success: false,
+                    message: 'Device credentials not found',
+                };
+            }
+
+            // 4. Authenticate with backend
+            const response = await authApi.loginWithBiometric(deviceId, deviceToken);
+
+            if (response.success && response.user) {
+                setUser(response.user);
+                setStatus('authenticated');
+
+                // Fetch user's exchange credentials
+                useCredentialsStore.getState().fetchCredentials(true);
+
+                // Navigate to main dashboard
+                router.replace('/(tabs)');
+            } else {
+                setError(response.message);
+            }
+
+            return response;
+        } catch (err: any) {
+            const message = err.message || 'Biometric login failed';
+            setError(message);
+            return { success: false, message };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     // Memoize context value to prevent unnecessary re-renders
     const contextValue = useMemo<AuthContextType>(() => ({
         user,
@@ -269,7 +450,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         refreshSession,
         clearError,
         verifyOTP,
-    }), [user, status, isLoading, error, login, register, logout, refreshSession, clearError, verifyOTP]);
+        enableBiometric,
+        disableBiometric,
+        loginWithBiometric,
+    }), [
+        user, 
+        status, 
+        isLoading, 
+        error, 
+        login, 
+        register, 
+        logout, 
+        refreshSession, 
+        clearError, 
+        verifyOTP,
+        enableBiometric,
+        disableBiometric,
+        loginWithBiometric,
+    ]);
 
     return (
         <AuthContext.Provider value={contextValue}>

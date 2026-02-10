@@ -8,6 +8,8 @@ import { LoginRequest } from 'src/utils/requests';
 import { ApicredentialsService } from 'src/apicredentials/apicredentials.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailService } from 'src/email/email.service';
+import { BiometricService } from './biometric.service';
+import { RegisterBiometricDeviceDto, BiometricLoginDto, RevokeBiometricDeviceDto } from './dto/biometric.dto';
 import express from 'express';
 
 @ApiTags('Auth Controller')
@@ -18,6 +20,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly apiCredentialsService: ApicredentialsService,
     private readonly emailService: EmailService,
+    private readonly biometricService: BiometricService,
   ) { }
 
 
@@ -256,4 +259,224 @@ export class AuthController {
       });
     }
   }
+
+  // ==========================================
+  // BIOMETRIC AUTHENTICATION ENDPOINTS
+  // ==========================================
+
+  /**
+   * Register a device for biometric authentication
+   * User must be authenticated (logged in) to register a device
+   */
+  @Post('/biometric/register')
+  @ApiBody({ type: RegisterBiometricDeviceDto })
+  public async registerBiometricDevice(
+    @Body() dto: RegisterBiometricDeviceDto,
+    @Req() req: express.Request,
+  ) {
+    const userId = req.user?.['id'];
+    if (!userId) {
+      throw new UnauthorizedException({
+        status: 'Fail',
+        data: {},
+        statusCode: 401,
+        message: 'User must be logged in to register a biometric device'
+      });
+    }
+
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
+                     (req.headers['x-real-ip'] as string) || 
+                     req.ip || 
+                     'Unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
+    try {
+      const { deviceToken, device } = await this.biometricService.registerDevice(
+        userId,
+        dto,
+        ipAddress,
+        userAgent,
+      );
+
+      console.log(`Biometric device registered for user ${userId}: ${device.deviceName}`);
+
+      return {
+        status: 'Success',
+        data: {
+          deviceToken, // This should be stored securely on the client device
+          device: {
+            id: device.id,
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            deviceType: device.deviceType,
+            biometricType: device.biometricType,
+            createdAt: device.createdAt,
+          },
+        },
+        statusCode: 201,
+        message: 'Biometric device registered successfully'
+      };
+    } catch (error) {
+      console.error('Biometric device registration error:', error);
+      throw new BadRequestException({
+        status: 'Fail',
+        data: {},
+        statusCode: 400,
+        message: error.message || 'Failed to register biometric device'
+      });
+    }
+  }
+
+  /**
+   * Authenticate using biometric device
+   * Public endpoint - validates device token
+   */
+  @Public()
+  @Post('/biometric/login')
+  @ApiBody({ type: BiometricLoginDto })
+  public async biometricLogin(
+    @Body() dto: BiometricLoginDto,
+    @Req() req: express.Request,
+  ) {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
+                     (req.headers['x-real-ip'] as string) || 
+                     req.ip || 
+                     'Unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
+    try {
+      const { accessToken, refreshToken, user } = await this.biometricService.authenticateWithDevice(
+        dto,
+        ipAddress,
+        userAgent,
+      );
+
+      // Get user's configured exchanges
+      const configuredExchanges = await this.apiCredentialsService.getUserExchanges(user.id);
+
+      // Remove sensitive fields
+      const { password: _, passwordUpdatedAt: __, ...userWithoutSensitiveData } = user;
+
+      const payload = {
+        ...this.buildResponsePayload(userWithoutSensitiveData as User, accessToken, refreshToken, configuredExchanges),
+      };
+
+      console.log(`Biometric login successful for user: ${user.email}`);
+
+      // Send login notification email (non-blocking)
+      const device = this.parseUserAgent(userAgent);
+      this.emailService.sendLoginNotification(
+        user.email,
+        user.name || 'User',
+        ipAddress,
+        device + ' (Biometric)',
+        'Unknown'
+      ).catch(error => {
+        console.error('Failed to send biometric login notification email:', error);
+      });
+
+      return {
+        status: 'Success',
+        data: { data: payload },
+        statusCode: 200,
+        message: 'Biometric authentication successful'
+      };
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      throw new UnauthorizedException({
+        status: 'Fail',
+        data: {},
+        statusCode: 401,
+        message: error.message || 'Biometric authentication failed'
+      });
+    }
+  }
+
+  /**
+   * Get all registered biometric devices for current user
+   */
+  @Get('/biometric/devices')
+  public async getBiometricDevices(@Req() req: express.Request) {
+    const userId = req.user?.['id'];
+    if (!userId) {
+      throw new UnauthorizedException({
+        status: 'Fail',
+        data: {},
+        statusCode: 401,
+        message: 'Unauthorized'
+      });
+    }
+
+    try {
+      const devices = await this.biometricService.getUserDevices(userId);
+
+      return {
+        status: 'Success',
+        data: {
+          devices: devices.map(d => ({
+            id: d.id,
+            deviceId: d.deviceId,
+            deviceName: d.deviceName,
+            deviceType: d.deviceType,
+            biometricType: d.biometricType,
+            lastUsedAt: d.lastUsedAt,
+            createdAt: d.createdAt,
+            isActive: d.isActive,
+          })),
+        },
+        statusCode: 200,
+        message: 'Biometric devices retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Get biometric devices error:', error);
+      throw new BadRequestException({
+        status: 'Fail',
+        data: {},
+        statusCode: 400,
+        message: 'Failed to retrieve biometric devices'
+      });
+    }
+  }
+
+  /**
+   * Revoke a biometric device
+   */
+  @Post('/biometric/revoke')
+  @ApiBody({ type: RevokeBiometricDeviceDto })
+  public async revokeBiometricDevice(
+    @Body() dto: RevokeBiometricDeviceDto,
+    @Req() req: express.Request,
+  ) {
+    const userId = req.user?.['id'];
+    if (!userId) {
+      throw new UnauthorizedException({
+        status: 'Fail',
+        data: {},
+        statusCode: 401,
+        message: 'Unauthorized'
+      });
+    }
+
+    try {
+      await this.biometricService.revokeDevice(userId, dto);
+
+      console.log(`Device ${dto.deviceId} revoked for user ${userId}`);
+
+      return {
+        status: 'Success',
+        data: {},
+        statusCode: 200,
+        message: 'Biometric device revoked successfully'
+      };
+    } catch (error) {
+      console.error('Revoke biometric device error:', error);
+      throw new BadRequestException({
+        status: 'Fail',
+        data: {},
+        statusCode: 400,
+        message: error.message || 'Failed to revoke biometric device'
+      });
+    }
+  }
 }
+

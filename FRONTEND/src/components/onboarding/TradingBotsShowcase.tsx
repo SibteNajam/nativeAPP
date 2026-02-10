@@ -451,7 +451,7 @@ export default function TradingBotsShowcase() {
                                         <View style={[styles.noteBox, { backgroundColor: `${colors.warning}15`, borderColor: colors.warning }]}>
                                             <MaterialCommunityIcons name="information" size={20} color={colors.warning} />
                                             <Text style={[styles.noteText, { color: colors.text }]}>
-                                                Past performance doesn't guarantee future results. All trading involves risk.
+                                                Past performance doesn&apos;t guarantee future results. All trading involves risk.
                                             </Text>
                                         </View>
                                     </View>

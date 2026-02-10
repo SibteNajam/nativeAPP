@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, In } from 'typeorm';
 import { RefreshToken } from './entities/refreshToken.entity';
 import { User } from 'src/user/entities/user.entity';
+import { BiometricDevice } from './entities/biometric-device.entity';
 
 @Injectable()
 export class RefreshTokenService {
   constructor(
     @InjectRepository(RefreshToken)
     private readonly refreshToken: Repository<RefreshToken>,
+    @InjectRepository(BiometricDevice)
+    private readonly biometricDevice: Repository<BiometricDevice>,
   ) { }
 
   /**
@@ -51,8 +54,34 @@ export class RefreshTokenService {
   /**
    * Revokes all refresh tokens for a user.
    * Useful for logout-all-devices functionality.
+   * @param userId The user ID
+   * @param excludeBiometric If true, don't revoke biometric device tokens
    */
-  async revokeAllUserTokens(userId: string) {
+  async revokeAllUserTokens(userId: string, excludeBiometric: boolean = true) {
+    if (excludeBiometric) {
+      // Get all biometric device refresh token IDs for this user
+      const biometricDevices = await this.biometricDevice.find({
+        where: { userId, isRevoked: false },
+        select: ['refreshTokenId'],
+      });
+      
+      const biometricTokenIds = biometricDevices
+        .map(d => d.refreshTokenId)
+        .filter(id => id != null);
+      
+      if (biometricTokenIds.length > 0) {
+        // Revoke all tokens EXCEPT biometric device tokens
+        return await this.refreshToken.update(
+          { 
+            user: { id: userId },
+            id: Not(In(biometricTokenIds))
+          },
+          { isRevoked: true }
+        );
+      }
+    }
+    
+    // Fallback: revoke all tokens
     return await this.refreshToken.update(
       { user: { id: userId } },
       { isRevoked: true }

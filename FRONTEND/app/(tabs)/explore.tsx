@@ -8,11 +8,10 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Animated,
 } from 'react-native';
-import { Surface, IconButton } from 'react-native-paper';
+import { IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { router } from 'expo-router';
@@ -73,6 +72,7 @@ export default function ExploreScreen() {
       title: 'Settings',
       description: 'App preferences and security',
       color: colors.textSecondary,
+      onPress: () => router.push('/(tabs)/settings'),
     },
   ];
 

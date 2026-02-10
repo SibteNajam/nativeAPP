@@ -98,7 +98,7 @@ export default function OTPSentNotification({ visible, onVerifyNow, email }: OTP
                                 Check Your Email! 📧
                             </Text>
                             <Text style={[styles.message, { color: colors.textSecondary }]}>
-                                We've sent a 6-digit verification code to
+                                We&apos;ve sent a 6-digit verification code to
                             </Text>
                             <Text style={[styles.email, { color: colors.primary }]}>
                                 {email}
@@ -149,7 +149,7 @@ export default function OTPSentNotification({ visible, onVerifyNow, email }: OTP
                             style={styles.tipContainer}
                         >
                             <Text style={[styles.tipText, { color: colors.textLight }]}>
-                                💡 Check your spam folder if you don't see it
+                                💡 Check your spam folder if you don&apos;t see it
                             </Text>
                         </MotiView>
                     </Surface>
